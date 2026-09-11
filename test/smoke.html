@@ -1,33 +1,16 @@
 <!doctype html>
-<!--
-  Browser smoke test. Open this file directly (file://) after `pnpm run build`:
-  it shims the GM_* API, loads the built userscript, and asserts on the result.
-  Complements `pnpm test`, which covers the pure logic in Node.
--->
+<!-- Browser smoke test. Run through `pnpm run test:smoke`. -->
 <html>
   <head>
     <meta charset="utf-8" />
     <title>RTL Anywhere smoke test</title>
     <style>
-      :root {
-        --bg: #0a0a0b;
-        --fg: #e6e8ee;
-      }
-      :root.light {
-        --bg: #f9fafb;
-        --fg: #111827;
-      }
       body {
         font:
           14px ui-monospace,
           Menlo,
           monospace;
         padding: 16px;
-        background: var(--bg);
-        color: var(--fg);
-        transition:
-          background 0.2s,
-          color 0.2s;
       }
       #out {
         white-space: pre;
@@ -35,27 +18,13 @@
         border-top: 1px solid #ccc;
         padding-top: 10px;
       }
-      .toggle-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 8px 16px;
-        background: var(--fg);
-        color: var(--bg);
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font: inherit;
-        z-index: 99999;
-      }
     </style>
     <script>
-      // --- GM_* shim: enough of the API for the bundle to run in a plain page ---
       const host = location.hostname;
       const store = {
         "auto-detect": true,
         onboarded: true,
-        sites: { [host]: ["#saved-rule"] },
+        "site-rules": { [host]: [".saved-rule"] },
       };
       window.GM_getValue = (k, d) => (k in store ? store[k] : d);
       window.GM_setValue = (k, v) => (store[k] = v);
@@ -70,18 +39,16 @@
     </script>
   </head>
   <body>
-    <button
-      class="toggle-btn"
-      onclick="document.documentElement.classList.toggle('light')"
-    >
-      Toggle Light/Dark
-    </button>
     <p id="fa">این یک پاراگراف فارسی است که باید راست‌چین شود.</p>
     <p id="en">This paragraph is English and must stay left to right.</p>
     <p id="mix">سلام دنیا <code id="code">const x = 1;</code> و ادامه متن.</p>
     <pre id="pre">preformatted block stays LTR</pre>
-    <p id="saved-rule">Saved site rule target should start RTL.</p>
-    <p id="dynamic-saved-rule">Dynamic saved rule target should become RTL later.</p>
+    <p id="saved-rule" class="saved-rule">
+      Saved site rule target should start RTL.
+    </p>
+    <p id="dynamic-saved-rule">
+      Dynamic saved rule target should become RTL later.
+    </p>
     <p id="target">Toggle me with the shortcut</p>
     <p id="selection-target">Before selected Persian text after.</p>
     <p id="protected-selection">
@@ -117,9 +84,14 @@
         selection.addRange(range);
       }
 
-      // The initial scan runs on requestIdleCallback, so give it a moment.
+      function finish() {
+        const failed = results.filter((r) => r.startsWith("FAIL")).length;
+        document.getElementById("out").textContent =
+          results.join("\n") +
+          `\n\n${results.length - failed}/${results.length} passed`;
+      }
+
       setTimeout(() => {
-        // --- auto-detect (enabled via the shim store) ---
         check(
           "auto: Persian paragraph became RTL",
           has("fa") && dir("fa") === "rtl",
@@ -135,131 +107,20 @@
           !has("pre") && dir("pre") === "ltr",
         );
 
-        // --- saved site rules ---
         check(
           "site: remembered selector applies on load",
           has("saved-rule") &&
             document.getElementById("saved-rule").dataset.tmRtlSrc === "site",
         );
-        const dynamic = document.getElementById("dynamic-saved-rule");
-        dynamic.id = "saved-rule";
+        const dynamic = document.createElement("p");
+        dynamic.id = "dynamic-saved-rule";
+        dynamic.className = "saved-rule";
+        dynamic.textContent =
+          "Dynamic saved rule target should become RTL later.";
+        document.body.insertBefore(dynamic, document.getElementById("out"));
 
-        // --- toggle shortcut on the hovered element (Alt+R) ---
-        const t = document.getElementById("target");
-        t.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
-        keydown("KeyR", { altKey: true });
-        check("Alt+R toggled the hovered element on", has("target"));
-        keydown("KeyR", { altKey: true });
-        check(
-          "Alt+R toggled it back off",
-          !has("target") && !t.hasAttribute("dir"),
-        );
-
-        // --- DOM selection wrapping ---
-        const selectionTarget = document.getElementById("selection-target");
-        const text = selectionTarget.firstChild;
-        const selectedStart = text.nodeValue.indexOf("selected");
-        const selectedEnd = selectedStart + "selected Persian text".length;
-        selectText(text, selectedStart, selectedEnd);
-        keydown("KeyR", { altKey: true });
-        const wrapper = selectionTarget.querySelector("[data-tm-rtl-wrap]");
-        check(
-          "selection: wraps selected text only",
-          wrapper?.textContent === "selected Persian text" &&
-            wrapper.classList.contains("tm-rtl") &&
-            !selectionTarget.classList.contains("tm-rtl"),
-        );
-        selectText(wrapper.firstChild, 0, wrapper.textContent.length);
-        keydown("KeyR", { altKey: true });
-        check(
-          "selection: toggling wrapped selection unwraps it",
-          !selectionTarget.querySelector("[data-tm-rtl-wrap]") &&
-            selectionTarget.textContent ===
-              "Before selected Persian text after.",
-        );
-
-        // --- protected selection fallback ---
-        const protectedCode = document.getElementById("protected-code");
-        selectText(
-          protectedCode.firstChild,
-          0,
-          protectedCode.textContent.length,
-        );
-        keydown("KeyR", { altKey: true });
-        check(
-          "selection: protected code is not wrapped",
-          !protectedCode.querySelector("[data-tm-rtl-wrap]") &&
-            dir("protected-code") === "ltr",
-        );
-
-        // --- contenteditable fallback ---
-        const editor = document.getElementById("editor");
-        editor.focus();
-        selectText(editor.firstChild, 0, "Editable Persian text".length);
-        keydown("KeyR", { altKey: true });
-        check(
-          "selection: editor toggles block instead of injecting spans",
-          has("editor") && !editor.querySelector("[data-tm-rtl-wrap]"),
-        );
-
-        // --- undo all (Alt+Shift+Z) ---
-        keydown("KeyZ", { altKey: true, shiftKey: true });
-        check(
-          "Alt+Shift+Z reverted the auto-detected elements",
-          !has("fa") && !has("mix") && !has("editor"),
-        );
-
-        // --- menu commands registered ---
-        check(
-          "menu commands registered",
-          !!window.__menu &&
-            ["Pick mode", "Undo all on this page", "Settings…"].every(
-              (k) => typeof window.__menu[k] === "function",
-            ),
-        );
-
-        // --- settings panel opens in a shadow root with all four tabs ---
-        window.__menu["Settings…"]();
-        const panel = [...document.documentElement.children]
-          .filter((n) => n.shadowRoot)
-          .map((h) => h.shadowRoot.querySelector(".panel"))
-          .find(Boolean);
-        const tabs = panel
-          ? [...panel.querySelectorAll(".tab")].map((b) => b.textContent)
-          : [];
-        check("settings panel rendered in a shadow root", !!panel);
-        check(
-          "panel has Font / Shortcuts / Auto / Sites tabs",
-          JSON.stringify(tabs) ===
-            JSON.stringify(["Font", "Shortcuts", "Auto", "Sites"]),
-        );
-
-        // --- pick mode: the border beam ---
-        const shadows = [...document.documentElement.children]
-          .filter((n) => n.shadowRoot)
-          .map((n) => n.shadowRoot);
-        const sq = (sel) =>
-          shadows.map((r) => r.querySelector(sel)).find(Boolean);
-        const beam = sq(".beam");
-        check("beam layers exist in the overlay shadow root", !!beam);
-        check(
-          "beam hidden before pick mode",
-          beam && !beam.classList.contains("on"),
-        );
-
-        window.__menu["Pick mode"]();
-        check("beam shown in pick mode", beam && beam.classList.contains("on"));
-        const hud = sq(".hud");
-        check(
-          "pick HUD slides on through its state class",
-          hud?.classList.contains("on"),
-        );
-        check(
-          "pick HUD uses Mac modifier glyphs",
-          hud?.textContent.includes("⌥") && hud?.textContent.includes("⇧"),
-        );
-
-        // Give the observer a chance to apply site rules to the renamed dynamic target.
+        // Wait before any Undo action: undoAll pauses observers, so this specifically
+        // verifies the normal live-content path while observers are still active.
         setTimeout(() => {
           check(
             "site: remembered selector applies to changed content",
@@ -267,11 +128,118 @@
               dynamic.dataset.tmRtlSrc === "site",
           );
 
-          const failed = results.filter((r) => r.startsWith("FAIL")).length;
-          document.getElementById("out").textContent =
-            results.join("\n") +
-            `\n\n${results.length - failed}/${results.length} passed`;
-        }, 350);
+          const t = document.getElementById("target");
+          t.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+          keydown("KeyR", { altKey: true });
+          check("Alt+R toggled the hovered element on", has("target"));
+          keydown("KeyR", { altKey: true });
+          check(
+            "Alt+R toggled it back off",
+            !has("target") && !t.hasAttribute("dir"),
+          );
+
+          const selectionTarget = document.getElementById("selection-target");
+          const text = selectionTarget.firstChild;
+          const selectedStart = text.nodeValue.indexOf("selected");
+          const selectedEnd = selectedStart + "selected Persian text".length;
+          selectText(text, selectedStart, selectedEnd);
+          keydown("KeyR", { altKey: true });
+          const wrapper = selectionTarget.querySelector("[data-tm-rtl-wrap]");
+          check(
+            "selection: wraps selected text only",
+            wrapper?.textContent === "selected Persian text" &&
+              wrapper.classList.contains("tm-rtl") &&
+              !selectionTarget.classList.contains("tm-rtl"),
+          );
+          selectText(wrapper.firstChild, 0, wrapper.textContent.length);
+          keydown("KeyR", { altKey: true });
+          check(
+            "selection: toggling wrapped selection unwraps it",
+            !selectionTarget.querySelector("[data-tm-rtl-wrap]") &&
+              selectionTarget.textContent ===
+                "Before selected Persian text after.",
+          );
+
+          const protectedCode = document.getElementById("protected-code");
+          selectText(
+            protectedCode.firstChild,
+            0,
+            protectedCode.textContent.length,
+          );
+          keydown("KeyR", { altKey: true });
+          check(
+            "selection: protected code is not wrapped",
+            !protectedCode.querySelector("[data-tm-rtl-wrap]") &&
+              dir("protected-code") === "ltr",
+          );
+
+          const editor = document.getElementById("editor");
+          editor.focus();
+          selectText(editor.firstChild, 0, "Editable Persian text".length);
+          keydown("KeyR", { altKey: true });
+          check(
+            "selection: editor toggles block instead of injecting spans",
+            has("editor") && !editor.querySelector("[data-tm-rtl-wrap]"),
+          );
+
+          keydown("KeyZ", { altKey: true, shiftKey: true });
+          check(
+            "Alt+Shift+Z reverted the auto-detected elements",
+            !has("fa") && !has("mix") && !has("editor"),
+          );
+
+          check(
+            "menu commands registered",
+            !!window.__menu &&
+              ["Pick mode", "Undo all on this page", "Settings…"].every(
+                (k) => typeof window.__menu[k] === "function",
+              ),
+          );
+
+          window.__menu["Settings…"]();
+          const panel = [...document.documentElement.children]
+            .filter((n) => n.shadowRoot)
+            .map((h) => h.shadowRoot.querySelector(".panel"))
+            .find(Boolean);
+          const tabs = panel
+            ? [...panel.querySelectorAll(".tab")].map((b) => b.textContent)
+            : [];
+          check("settings panel rendered in a shadow root", !!panel);
+          check(
+            "panel has Font / Shortcuts / Auto / Sites tabs",
+            JSON.stringify(tabs) ===
+              JSON.stringify(["Font", "Shortcuts", "Auto", "Sites"]),
+          );
+
+          const shadows = [...document.documentElement.children]
+            .filter((n) => n.shadowRoot)
+            .map((n) => n.shadowRoot);
+          const sq = (sel) =>
+            shadows.map((r) => r.querySelector(sel)).find(Boolean);
+          const beam = sq(".beam");
+          check("beam layers exist in the overlay shadow root", !!beam);
+          check(
+            "beam hidden before pick mode",
+            beam && !beam.classList.contains("on"),
+          );
+
+          window.__menu["Pick mode"]();
+          check(
+            "beam shown in pick mode",
+            beam && beam.classList.contains("on"),
+          );
+          const hud = sq(".hud");
+          check(
+            "pick HUD slides on through its state class",
+            hud?.classList.contains("on"),
+          );
+          check(
+            "pick HUD uses Mac modifier glyphs",
+            hud?.textContent.includes("⌥") && hud?.textContent.includes("⇧"),
+          );
+
+          finish();
+        }, 450);
       }, 1500);
     </script>
   </body>
