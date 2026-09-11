@@ -2,7 +2,6 @@
 import { K } from "./constants.ts";
 import { PAGE, HOST } from "./env.ts";
 import { getValue, setValue } from "./gm.ts";
-import { esc } from "./dom.ts";
 import { applyTypography } from "./styles.ts";
 import { drawHover } from "./overlay.ts";
 import { formatCombo } from "./keys.ts";
@@ -18,9 +17,8 @@ import {
 import { auto, setAuto, setSiteAuto } from "./auto.ts";
 import { siteRules, allSites } from "./rules.ts";
 import { removeRule } from "./sites.ts";
-import { UI_CSS } from "./ui-css.ts";
-
-type Tab = "font" | "keys" | "auto" | "sites";
+import { panelMarkup } from "./panel-markup.ts";
+import type { PanelTab } from "./panel-markup.ts";
 
 let panelHost: HTMLElement | null = null;
 
@@ -40,68 +38,12 @@ export function closePanel(): void {
   document.removeEventListener("mousedown", onOutsideDown, true);
 }
 
-export function openPanel(tab: Tab = "font"): void {
+export function openPanel(tab: PanelTab = "font"): void {
   closePanel();
   const host = document.createElement("div");
   panelHost = host;
   const root = host.attachShadow({ mode: "open" });
-  root.innerHTML = `
-      <style>${UI_CSS}</style>
-      <div class="panel">
-        <div class="hdr">
-          <div class="t" style="display:flex;align-items:center;gap:10px">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <div>RTL Anywhere<small>Configure behavior and appearance</small></div>
-          </div>
-          <button class="x" title="Close" aria-label="Close">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11 1L1 11M1 1L11 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-        <div class="tabs">
-          <button class="tab" data-tab="font">Font</button>
-          <button class="tab" data-tab="keys">Shortcuts</button>
-          <button class="tab" data-tab="auto">Auto</button>
-          <button class="tab" data-tab="sites">Sites</button>
-        </div>
-
-        <div class="sec" data-sec="font">
-          <div class="q-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.29 14.71l5 5 1.42-1.42-5-5A8 8 0 0010 2zm0 14a6 6 0 116-6 6 6 0 01-6 6z"/></svg>
-            <input class="q" type="text" placeholder="Search, or type any font name…" spellcheck="false" autocomplete="off">
-          </div>
-          <div class="list"></div>
-          <div class="ftr"><span class="msg"></span><button class="btn load">Load system fonts</button></div>
-        </div>
-
-        <div class="sec" data-sec="keys">
-          <div class="row"><div><b>Toggle RTL</b><small>Selected text, or the element under the cursor</small></div><button class="kbd" data-sc="toggle"></button></div>
-          <div class="row"><div><b>Pick mode</b><small>Hover to preview, click to toggle, ⇧click to remember</small></div><button class="kbd" data-sc="pick"></button></div>
-          <div class="row"><div><b>Undo all</b><small>Revert every change on this page</small></div><button class="kbd" data-sc="undo"></button></div>
-          <div class="row"><div><b>In pick mode</b><small>↑ / ↓ or ⌥ + wheel: parent / child · Esc: exit</small></div><span class="kbd fixed">↑ ↓ Esc</span></div>
-          <div class="hint"></div>
-          <div class="ftr"><span class="msg">Click a shortcut to change it. Saved globally.</span><button class="btn reset">Reset</button></div>
-        </div>
-
-        <div class="sec" data-sec="auto">
-          <div class="row">
-            <div><b>All sites</b><small>Auto-detect Persian, Arabic and Hebrew text everywhere.</small></div>
-            <label class="sw"><input type="checkbox" class="auto-global"><i></i></label>
-          </div>
-          <div class="row">
-            <div><b>This site</b><small>Auto-detect only on ${esc(HOST)} when the global option is off.</small></div>
-            <label class="sw"><input type="checkbox" class="auto-site"><i></i></label>
-          </div>
-          <div class="ftr"><span class="msg auto-msg"></span></div>
-        </div>
-
-        <div class="sec" data-sec="sites">
-          <div class="row" style="padding-bottom:6px"><div><b>Remembered on ${esc(HOST)}</b><small>In pick mode, ⇧click an element to save it here. Hover a rule to see it.</small></div></div>
-          <div class="list rules"></div>
-          <div class="ftr"><span class="msg sites-msg"></span><button class="btn forget">Forget this site</button></div>
-        </div>
-      </div>`;
+  root.innerHTML = panelMarkup();
   document.documentElement.appendChild(host);
   document.addEventListener("mousedown", onOutsideDown, true);
 
@@ -115,7 +57,7 @@ export function openPanel(tab: Tab = "font"): void {
   $(".x").addEventListener("click", closePanel);
 
   // --- tabs ---
-  function showTab(name: Tab) {
+  function showTab(name: PanelTab) {
     stopRecord();
     drawHover(null);
     $$(".tab").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
@@ -123,7 +65,7 @@ export function openPanel(tab: Tab = "font"): void {
     if (name === "font") q.focus();
   }
   $$(".tab").forEach((t) =>
-    t.addEventListener("click", () => showTab(t.dataset.tab as Tab)),
+    t.addEventListener("click", () => showTab(t.dataset.tab as PanelTab)),
   );
 
   // --- font tab ---
