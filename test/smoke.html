@@ -75,24 +75,18 @@
       const results = [];
       const check = (name, cond) =>
         results.push((cond ? "PASS  " : "FAIL  ") + name);
-
-      function keydown(code, mods) {
+      const keydown = (code, mods) =>
         document.dispatchEvent(
           new KeyboardEvent("keydown", { code, bubbles: true, ...mods }),
         );
-      }
-
-      function windowKeydown(code, mods) {
+      const windowKeydown = (code, mods) =>
         window.dispatchEvent(
           new KeyboardEvent("keydown", { code, bubbles: true, ...mods }),
         );
-      }
-
       function input(el, value) {
         el.value = value;
         el.dispatchEvent(new Event("input", { bubbles: true }));
       }
-
       function selectText(node, start, end) {
         const range = document.createRange();
         range.setStart(node, start);
@@ -101,18 +95,14 @@
         selection.removeAllRanges();
         selection.addRange(range);
       }
-
       function shadowQuery(selector) {
         return [...document.documentElement.children]
           .filter((node) => node.shadowRoot)
           .map((host) => host.shadowRoot.querySelector(selector))
           .find(Boolean);
       }
-
-      function hasShortcut(text, win, mac) {
-        return text.includes(win) || text.includes(mac);
-      }
-
+      const hasShortcut = (text, win, mac) =>
+        text.includes(win) || text.includes(mac);
       function finish() {
         const failed = results.filter((r) => r.startsWith("FAIL")).length;
         document.getElementById("out").textContent =
@@ -153,12 +143,12 @@
           "auto: <pre> never becomes RTL",
           !has("pre") && dir("pre") === "ltr",
         );
-
         check(
           "site: remembered selector applies on load",
           has("saved-rule") &&
             document.getElementById("saved-rule").dataset.tmRtlSrc === "site",
         );
+
         const dynamic = document.createElement("p");
         dynamic.id = "dynamic-saved-rule";
         dynamic.className = "saved-rule";
@@ -252,13 +242,11 @@
             "selection: editor toggles block instead of injecting spans",
             has("editor") && !editor.querySelector("[data-tm-rtl-wrap]"),
           );
-
           keydown("KeyZ", { altKey: true, shiftKey: true });
           check(
             "Alt+Shift+Z reverted the auto-detected elements",
             !has("fa") && !has("mix") && !has("editor"),
           );
-
           check(
             "menu commands registered",
             !!window.__menu &&
@@ -316,6 +304,40 @@
           const keysTab = panel.querySelector('[data-tab="keys"]');
           keysTab.click();
           const toggleButton = panel.querySelector('[data-sc="toggle"]');
+          const pickButton = panel.querySelector('[data-sc="pick"]');
+          const hint = panel.querySelector(".hint");
+          toggleButton.click();
+          windowKeydown("KeyA", {
+            altKey: false,
+            shiftKey: false,
+            ctrlKey: false,
+            metaKey: false,
+          });
+          check(
+            "shortcuts: recorder rejects bare letter",
+            !store.shortcuts?.toggle &&
+              hint.textContent.includes("Shift alone"),
+          );
+          windowKeydown("KeyR", {
+            altKey: true,
+            shiftKey: true,
+            ctrlKey: false,
+            metaKey: false,
+          });
+          check(
+            "shortcuts: recorder rejects conflicting combo",
+            !store.shortcuts?.toggle && hint.textContent.includes("Pick mode"),
+          );
+          windowKeydown("Escape", {
+            altKey: false,
+            shiftKey: false,
+            ctrlKey: false,
+            metaKey: false,
+          });
+          check(
+            "shortcuts: recorder escape cancels",
+            toggleButton.textContent.includes("R") && hint.textContent === "",
+          );
           toggleButton.click();
           windowKeydown("KeyY", {
             altKey: true,
@@ -328,6 +350,18 @@
             store.shortcuts?.toggle?.code === "KeyY" &&
               store.shortcuts.toggle.alt === true &&
               toggleButton.textContent.includes("Y"),
+          );
+          pickButton.click();
+          windowKeydown("F8", {
+            altKey: false,
+            shiftKey: false,
+            ctrlKey: false,
+            metaKey: false,
+          });
+          check(
+            "shortcuts: recorder accepts function keys",
+            store.shortcuts?.pick?.code === "F8" &&
+              pickButton.textContent.includes("F8"),
           );
 
           const sitesTab = panel.querySelector('[data-tab="sites"]');
@@ -357,7 +391,6 @@
             "beam hidden before pick mode",
             beam && !beam.classList.contains("on"),
           );
-
           window.__menu["Pick mode"]();
           check(
             "beam shown in pick mode",
