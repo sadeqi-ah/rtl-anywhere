@@ -88,6 +88,11 @@
         );
       }
 
+      function input(el, value) {
+        el.value = value;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
       function selectText(node, start, end) {
         const range = document.createRange();
         range.setStart(node, start);
@@ -272,6 +277,21 @@
             "panel has Font / Shortcuts / Auto / Sites tabs",
             JSON.stringify(tabs) ===
               JSON.stringify(["Font", "Shortcuts", "Auto", "Sites"]),
+          );
+
+          const fontInput = panel.querySelector(".q");
+          input(fontInput, "Georgia");
+          panel.querySelector(".item")?.click();
+          check(
+            "font settings: manual font persists",
+            store["rtl-font"] === "Georgia" &&
+              panel.querySelector(".item.on")?.dataset.font === "Georgia",
+          );
+          check(
+            "font settings: typography style injected",
+            [...document.querySelectorAll("style")].some((style) =>
+              style.textContent.includes('font-family: "Georgia"'),
+            ),
           );
 
           const autoTab = panel.querySelector('[data-tab="auto"]');
