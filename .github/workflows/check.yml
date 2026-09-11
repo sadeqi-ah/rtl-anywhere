@@ -17,6 +17,8 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Browser smoke tests run through Playwright, so CI needs a browser binary.
+      - run: pnpm exec playwright install chromium --with-deps
       # Keep CI aligned with the local gate documented in package.json.
       # This includes formatting, TypeScript, Node tests, bundle freshness, and browser smoke tests.
       - run: pnpm run check
