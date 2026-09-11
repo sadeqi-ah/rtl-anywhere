@@ -1,6 +1,6 @@
 # Contributing
 
-RTL Anywhere is maintained with small, reviewable changes and a strict local check gate.
+RTL Anywhere is maintained with reviewable changes and a strict local check gate.
 
 ## Local setup
 
@@ -14,15 +14,16 @@ pnpm run check
 ## Development workflow
 
 1. Create a focused branch.
-2. Make the smallest useful change.
-3. Run:
+2. Group related work into one PR instead of opening several tiny PRs.
+3. Keep unrelated risky changes separate from safe docs/test/build cleanup.
+4. Run:
 
 ```bash
 pnpm run check
 ```
 
-4. If `rtl-anywhere.user.js` changes after the build step, review and commit it with the related source change.
-5. Open a PR using the template.
+5. If `rtl-anywhere.user.js` changes after the build step, review and commit it with the related source change.
+6. Open a PR using the template.
 
 ## Commit style
 
@@ -36,6 +37,7 @@ refactor(scope): reorganize without behavior changes
 docs: update documentation
 ci: update automation
 build: update build output
+chore: maintain project configuration
 ```
 
 Examples:
@@ -44,6 +46,7 @@ Examples:
 test(pick): cover remembered selector shortcut
 fix(test): wait for smoke results
 refactor(ui): isolate overlay markup
+chore: reduce maintenance noise
 ```
 
 ## Tests
@@ -87,6 +90,16 @@ Hard rules:
 - No network APIs unless explicitly reviewed.
 - Do not store page text, selected text, page URLs, or browsing history.
 - Keep storage limited to user preferences and remembered selectors.
+
+## Dependency updates
+
+Dependabot is configured to group related updates and keep open PRs limited. Treat dependency updates as maintenance, not urgent release work.
+
+Recommended review order:
+
+1. Merge grouped GitHub Actions updates when CI is green.
+2. Review npm development dependency updates after local `pnpm run check` passes.
+3. Be careful with major TypeScript or Node type updates; they can create noisy type churn.
 
 ## Bundle policy
 
