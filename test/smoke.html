@@ -25,7 +25,7 @@
         "auto-detect": true,
         "auto-detect-sites": [],
         onboarded: false,
-        "site-rules": { [host]: [".saved-rule"] },
+        "site-rules": { [host]: [".saved-rule", ".forget-rule"] },
       };
       window.GM_getValue = (k, d) => (k in store ? store[k] : d);
       window.GM_setValue = (k, v) => (store[k] = v);
@@ -46,6 +46,9 @@
     <pre id="pre">preformatted block stays LTR</pre>
     <p id="saved-rule" class="saved-rule">
       Saved site rule target should start RTL.
+    </p>
+    <p id="forget-rule" class="forget-rule">
+      Forget site rule target should also start RTL.
     </p>
     <p id="dynamic-saved-rule">
       Dynamic saved rule target should become RTL later.
@@ -292,15 +295,11 @@
                 .getElementById("saved-rule")
                 .classList.contains("tm-rtl"),
           );
-          store["site-rules"] = { [host]: [".saved-rule"] };
-          window.__menu["Settings…"]();
-          const panelAgain = shadowQuery(".panel");
-          panelAgain.querySelector('[data-tab="sites"]').click();
-          panelAgain.querySelector(".forget")?.click();
+          panel.querySelector(".forget")?.click();
           check(
             "sites settings: forget site clears rules",
             !store["site-rules"]?.[host] &&
-              panelAgain.querySelector(".forget").disabled === true,
+              panel.querySelector(".forget").disabled === true,
           );
 
           const beam = shadowQuery(".beam");
