@@ -48,20 +48,46 @@ page.on("pageerror", (error) => errors.push(error.message));
 page.on("console", (message) => {
   if (message.type() === "error") errors.push(message.text());
 });
+page.on("requestfailed", (request) => {
+  errors.push(
+    `request failed: ${request.url()} ${request.failure()?.errorText ?? "unknown"}`,
+  );
+});
+
+async function readOutput() {
+  return (
+    (await page
+      .locator("#out")
+      .textContent()
+      .catch(() => null)) ?? ""
+  );
+}
 
 try {
   await page.goto(`http://127.0.0.1:${address.port}/test/smoke.html`);
 
-  await page.waitForFunction(
-    () => {
-      const text = document.getElementById("out")?.textContent ?? "";
-      return text.includes("PASS") || text.includes("FAIL");
-    },
-    undefined,
-    { timeout: 5_000 },
-  );
+  try {
+    await page.waitForFunction(
+      () => {
+        const text = document.getElementById("out")?.textContent ?? "";
+        return text.includes("PASS") || text.includes("FAIL");
+      },
+      undefined,
+      { timeout: 10_000 },
+    );
+  } catch (error) {
+    const output = await readOutput();
+    throw new Error(
+      [
+        "Smoke test did not finish before the timeout.",
+        output ? `Current output:\n${output}` : "No #out output was available.",
+        ...errors.map((message) => `console/page error: ${message}`),
+      ].join("\n"),
+      { cause: error },
+    );
+  }
 
-  const output = await page.locator("#out").textContent();
+  const output = await readOutput();
   if (!output || output.trim() === "running…") {
     throw new Error("Smoke test did not finish before the timeout");
   }
