@@ -6,7 +6,11 @@ import assert from "node:assert/strict";
 const ROOT = new URL("..", import.meta.url);
 const PATTERN =
   /\b(fetch|XMLHttpRequest|GM_xmlhttpRequest|WebSocket|sendBeacon)\b/g;
-const ALLOWED_DOCS = new Set(["README.md", "SECURITY.md"]);
+const ALLOWED_FILES = new Set([
+  "README.md",
+  "SECURITY.md",
+  "test/security-scan.mjs",
+]);
 
 const files = execFileSync(
   "git",
@@ -19,7 +23,7 @@ const files = execFileSync(
 
 const findings = [];
 for (const file of files) {
-  if (ALLOWED_DOCS.has(file)) continue;
+  if (ALLOWED_FILES.has(file)) continue;
   const text = readFileSync(new URL(file, ROOT), "utf8");
   for (const match of text.matchAll(PATTERN)) {
     const line = text.slice(0, match.index).split("\n").length;
