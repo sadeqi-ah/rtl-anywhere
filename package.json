@@ -24,6 +24,7 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node --test test/*.test.ts",
+    "dev:harness": "node build.mjs && echo 'Open test/harness.html in a browser'",
     "format": "prettier --write .",
     "check": "prettier --check . && tsc -p tsconfig.json && node --test test/*.test.ts && node build.mjs",
     "typecheck": "tsc -p tsconfig.json"
