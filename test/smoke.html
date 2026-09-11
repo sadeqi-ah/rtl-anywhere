@@ -24,7 +24,7 @@
       const store = {
         "auto-detect": true,
         "auto-detect-sites": [],
-        onboarded: true,
+        onboarded: false,
         "site-rules": { [host]: [".saved-rule"] },
       };
       window.GM_getValue = (k, d) => (k in store ? store[k] : d);
@@ -91,6 +91,13 @@
         selection.addRange(range);
       }
 
+      function shadowQuery(selector) {
+        return [...document.documentElement.children]
+          .filter((node) => node.shadowRoot)
+          .map((host) => host.shadowRoot.querySelector(selector))
+          .find(Boolean);
+      }
+
       function finish() {
         const failed = results.filter((r) => r.startsWith("FAIL")).length;
         document.getElementById("out").textContent =
@@ -99,6 +106,25 @@
       }
 
       setTimeout(() => {
+        const onboardCard = shadowQuery(".card");
+        check(
+          "onboarding: first-run card renders",
+          !!onboardCard &&
+            onboardCard.textContent.includes("RTL Anywhere is ready"),
+        );
+        check(
+          "onboarding: first-run card shows shortcuts",
+          !!onboardCard &&
+            onboardCard.textContent.includes("Alt+R") &&
+            onboardCard.textContent.includes("Alt+Shift+R") &&
+            onboardCard.textContent.includes("Alt+Shift+Z"),
+        );
+        onboardCard?.querySelector(".ok")?.click();
+        check(
+          "onboarding: continue dismisses and persists",
+          store.onboarded === true && !shadowQuery(".card"),
+        );
+
         check(
           "auto: Persian paragraph became RTL",
           has("fa") && dir("fa") === "rtl",
@@ -202,10 +228,7 @@
           );
 
           window.__menu["Settings…"]();
-          const panel = [...document.documentElement.children]
-            .filter((n) => n.shadowRoot)
-            .map((h) => h.shadowRoot.querySelector(".panel"))
-            .find(Boolean);
+          const panel = shadowQuery(".panel");
           const tabs = panel
             ? [...panel.querySelectorAll(".tab")].map((b) => b.textContent)
             : [];
@@ -252,12 +275,7 @@
               toggleButton.textContent.includes("Y"),
           );
 
-          const shadows = [...document.documentElement.children]
-            .filter((n) => n.shadowRoot)
-            .map((n) => n.shadowRoot);
-          const sq = (sel) =>
-            shadows.map((r) => r.querySelector(sel)).find(Boolean);
-          const beam = sq(".beam");
+          const beam = shadowQuery(".beam");
           check("beam layers exist in the overlay shadow root", !!beam);
           check(
             "beam hidden before pick mode",
@@ -269,7 +287,7 @@
             "beam shown in pick mode",
             beam && beam.classList.contains("on"),
           );
-          const hud = sq(".hud");
+          const hud = shadowQuery(".hud");
           check(
             "pick HUD slides on through its state class",
             hud?.classList.contains("on"),
