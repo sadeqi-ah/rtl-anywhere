@@ -98,6 +98,10 @@
           .find(Boolean);
       }
 
+      function hasShortcut(text, win, mac) {
+        return text.includes(win) || text.includes(mac);
+      }
+
       function finish() {
         const failed = results.filter((r) => r.startsWith("FAIL")).length;
         document.getElementById("out").textContent =
@@ -107,17 +111,16 @@
 
       setTimeout(() => {
         const onboardCard = shadowQuery(".card");
+        const onboardText = onboardCard?.textContent ?? "";
         check(
           "onboarding: first-run card renders",
-          !!onboardCard &&
-            onboardCard.textContent.includes("RTL Anywhere is ready"),
+          !!onboardCard && onboardText.includes("RTL Anywhere is ready"),
         );
         check(
           "onboarding: first-run card shows shortcuts",
-          !!onboardCard &&
-            onboardCard.textContent.includes("Alt+R") &&
-            onboardCard.textContent.includes("Alt+Shift+R") &&
-            onboardCard.textContent.includes("Alt+Shift+Z"),
+          hasShortcut(onboardText, "Alt+R", "⌥R") &&
+            hasShortcut(onboardText, "Alt+Shift+R", "⌥⇧R") &&
+            hasShortcut(onboardText, "Alt+Shift+Z", "⌥⇧Z"),
         );
         onboardCard?.querySelector(".ok")?.click();
         check(
