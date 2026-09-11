@@ -278,6 +278,31 @@
               toggleButton.textContent.includes("Y"),
           );
 
+          const sitesTab = panel.querySelector('[data-tab="sites"]');
+          sitesTab.click();
+          check(
+            "sites settings: remembered rules render",
+            panel.querySelector(".rules code")?.textContent === ".saved-rule",
+          );
+          panel.querySelector(".rule .x")?.click();
+          check(
+            "sites settings: remove rule persists",
+            !(store["site-rules"]?.[host] ?? []).includes(".saved-rule") &&
+              !document
+                .getElementById("saved-rule")
+                .classList.contains("tm-rtl"),
+          );
+          store["site-rules"] = { [host]: [".saved-rule"] };
+          window.__menu["Settings…"]();
+          const panelAgain = shadowQuery(".panel");
+          panelAgain.querySelector('[data-tab="sites"]').click();
+          panelAgain.querySelector(".forget")?.click();
+          check(
+            "sites settings: forget site clears rules",
+            !store["site-rules"]?.[host] &&
+              panelAgain.querySelector(".forget").disabled === true,
+          );
+
           const beam = shadowQuery(".beam");
           check("beam layers exist in the overlay shadow root", !!beam);
           check(
