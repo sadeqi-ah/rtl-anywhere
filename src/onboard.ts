@@ -1,7 +1,7 @@
 // First-run card: shown once, top frame only.
 import { K } from "./constants.ts";
 import { IS_TOP } from "./env.ts";
-import { setValue } from "./gm.ts";
+import { getValue, setValue } from "./gm.ts";
 import { setAuto } from "./auto.ts";
 import { openPanel } from "./panel.ts";
 import { onboardMarkup } from "./onboard-markup.ts";
@@ -20,7 +20,7 @@ export function dismissOnboard(): boolean {
 export function maybeOnboard(): void {
   if (
     !IS_TOP ||
-    localStorage.getItem("tm-rtl-skip-onboarding") === "1" ||
+    getValue(K.onboarded, false) ||
     document.visibilityState !== "visible"
   )
     return;
