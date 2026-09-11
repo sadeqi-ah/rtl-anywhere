@@ -121,7 +121,13 @@ Run all checks:
 pnpm run check
 ```
 
-`check` runs formatting, TypeScript, Node logic tests, a build, and the automated browser smoke test.
+`check` runs formatting, TypeScript, Node logic tests, a build, verifies that the committed userscript bundle is not stale, and runs the automated browser smoke test.
+
+Verify only the committed bundle:
+
+```bash
+pnpm run check:bundle
+```
 
 ### Local UI harness
 
@@ -218,6 +224,10 @@ Use pick mode and adjust depth with `↑` / `↓` or `⌥`+wheel before clicking
 ### The onboarding card does not appear
 
 It is shown once and only in the top frame. In the local harness, use **Show onboarding** to replay it.
+
+### `pnpm run check` changed `rtl-anywhere.user.js`
+
+The distributable userscript is committed so the raw GitHub install link can serve it. Run `pnpm run build`, review the generated diff, and commit the updated `rtl-anywhere.user.js` with the related source change.
 
 ### The install link uses `rtl-anywhere`
 
