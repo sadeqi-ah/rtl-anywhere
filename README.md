@@ -123,6 +123,8 @@ pnpm run check
 
 `check` runs formatting, TypeScript, Node logic tests, the privacy/security scan, a build, verifies that the committed userscript bundle is not stale, and runs the automated browser smoke test. GitHub Actions runs the same command, so CI and local checks should stay aligned.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, commit, testing, and bundle workflow.
+
 Verify only the committed bundle:
 
 ```bash
