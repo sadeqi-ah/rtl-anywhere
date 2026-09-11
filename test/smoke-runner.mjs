@@ -1,0 +1,73 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, resolve } from "node:path";
+import { chromium } from "playwright";
+
+const root = resolve(new URL("..", import.meta.url).pathname);
+const mime = new Map([
+  [".html", "text/html; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
+  [".png", "image/png"],
+  [".gif", "image/gif"],
+]);
+
+const server = createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    const path = url.pathname === "/" ? "/test/smoke.html" : url.pathname;
+    const file = resolve(join(root, path));
+
+    if (!file.startsWith(root)) {
+      res.writeHead(403).end("Forbidden");
+      return;
+    }
+
+    const body = await readFile(file);
+    res.writeHead(200, {
+      "content-type": mime.get(extname(file)) ?? "application/octet-stream",
+    });
+    res.end(body);
+  } catch (error) {
+    res.writeHead(404).end(error instanceof Error ? error.message : "Not found");
+  }
+});
+
+server.listen(0, "127.0.0.1");
+await once(server, "listening");
+const address = server.address();
+if (!address || typeof address === "string") throw new Error("No server port");
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage();
+const errors = [];
+page.on("pageerror", (error) => errors.push(error.message));
+page.on("console", (message) => {
+  if (message.type() === "error") errors.push(message.text());
+});
+
+try {
+  await page.goto(`http://127.0.0.1:${address.port}/test/smoke.html`);
+  const output = await page.locator("#out").textContent({ timeout: 5_000 });
+  if (!output) throw new Error("Smoke test produced no output");
+
+  console.log(output);
+
+  const failLines = output
+    .split("\n")
+    .filter((line) => line.startsWith("FAIL"));
+  if (failLines.length || errors.length) {
+    throw new Error(
+      [
+        ...failLines,
+        ...errors.map((error) => `console/page error: ${error}`),
+      ].join("\n"),
+    );
+  }
+} finally {
+  await page.close();
+  await browser.close();
+  server.close();
+}
