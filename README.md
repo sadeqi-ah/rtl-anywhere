@@ -2,12 +2,26 @@
 
 Make any piece of text on any website right-to-left — with one shortcut.
 
+RTL Anywhere is a small Tampermonkey/Violentmonkey userscript for mixed-direction reading and writing. It is built for moments where one paragraph, one comment, one editor field, or one page section should become RTL without changing the whole website.
+
 ![demo](assets/demo.gif)
 
 ## Install
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/) (or Violentmonkey).
+1. Install [Tampermonkey](https://www.tampermonkey.net/) or Violentmonkey.
 2. Click **[Install RTL Anywhere](https://raw.githubusercontent.com/sadeqi-ah/rtl-anywhere/main/rtl-anywhere.user.js)**.
+3. Confirm the userscript manager prompt.
+
+To update later, use your userscript manager's update action, or reinstall from the same link.
+
+## Quick start
+
+- Hover an element and press `Alt+R` / `⌥R` to toggle it RTL.
+- Select text and press `Alt+R` / `⌥R` to RTL only that selected text.
+- Press `Alt+Shift+R` / `⌥⇧R` for pick mode when you want precise visual selection.
+- Press `Alt+Shift+Z` / `⌥⇧Z` to undo all changes on the current page.
+
+Pressing the toggle shortcut again on an RTL element reverts it.
 
 ## Usage
 
@@ -16,11 +30,9 @@ Make any piece of text on any website right-to-left — with one shortcut.
 | `Alt+R` / `⌥R`        | Toggle RTL on the selected text, or the element under the cursor       |
 | `Alt+Shift+R` / `⌥⇧R` | Pick mode: hover to preview, click to toggle. Stays active until `Esc` |
 | `Alt+Shift+Z` / `⌥⇧Z` | Undo everything on the current page                                    |
-| `Esc`                 | Exit pick mode / close settings                                        |
+| `Esc`                 | Exit pick mode / close settings / dismiss onboarding                   |
 
-Pressing the toggle shortcut again on an RTL element reverts it.
-
-### In pick mode
+### Pick mode
 
 | Key                     | Action                                           |
 | ----------------------- | ------------------------------------------------ |
@@ -29,21 +41,32 @@ Pressing the toggle shortcut again on an RTL element reverts it.
 | `↑` / `↓`, or `⌥`+wheel | Move the selection to the parent / child element |
 | `Esc`                   | Exit                                             |
 
-All three shortcuts are also in the Tampermonkey menu, next to **Settings…**.
+All three main actions are also available from the Tampermonkey menu, next to **Settings…**.
 
 ## Features
 
-- Works on text selections (only the selected part becomes RTL) or whole elements
-- Code, `pre`, math (MathJax/KaTeX), and editors are detected and always stay LTR
-- Icon fonts, emoji and SVG keep their own font when a custom RTL font is set
-- **Auto-detect** — paragraphs that are mostly Persian, Arabic or Hebrew (≥60% of their
-  letters) become RTL on their own. Pages that already render RTL are left alone. Off by default
-- **Per-site memory** — `⇧`+click in pick mode saves a selector for that hostname and
-  re-applies it on every visit, including content loaded later
-- Optional font for RTL text — pick from your system fonts, saved globally
+- Toggle a full element or only the currently selected text
+- Precise pick mode with parent/child depth control
+- Per-site remembered selectors with `⇧`+click
+- Optional auto-detect for Persian, Arabic, and Hebrew text
+- Optional custom font for RTL text
 - Customizable shortcuts
-- DevTools-style highlight that is never clipped by `overflow: hidden`
-- No tracking, no network requests
+- DevTools-style overlay that is not clipped by `overflow: hidden`
+- Code, `pre`, math, editors, icon fonts, emoji, and SVG are protected from accidental styling
+- Local-only settings through userscript storage
+- No tracking, analytics, `fetch`, or `GM_xmlhttpRequest`
+
+## Auto-detect
+
+Auto-detect can make paragraphs RTL automatically when at least 60% of their letters are Persian, Arabic, Hebrew, or another RTL script covered by the detector.
+
+It is intentionally conservative:
+
+- Off by default
+- Can be enabled globally or only for the current site
+- Leaves pages alone when they already render RTL
+- Skips code, math, editors, and protected regions
+- Re-applies to content loaded later through the page observer
 
 ## Settings
 
@@ -58,36 +81,147 @@ Tampermonkey menu → **Settings…**
 | **Auto**      | Auto-detect globally or only on the current site                        |
 | **Sites**     | Selectors remembered for the current hostname, and **Forget this site** |
 
-> **Font list:** "Load system fonts" uses the Local Font Access API (Chrome/Edge/Brave,
-> HTTPS only). On Firefox/Safari you can type the font name manually.
+> **Font list:** "Load system fonts" uses the Local Font Access API in supported Chromium browsers. It requires an HTTPS page and a user gesture. On unsupported browsers, type the font name manually.
 
 ## What is saved
 
-Everything is stored locally through Tampermonkey's own storage (`GM_setValue`), never sent
-anywhere: your font, your shortcuts, global/per-site auto-detect settings, and per-site
-selectors from `⇧`+click.
+Everything is stored locally through Tampermonkey's own storage (`GM_setValue`):
 
-One-off toggles are **not** saved. Reloading a page restores the site's original layout —
-unless auto-detect is on, or the element matches a selector you remembered for that site.
+- selected RTL font
+- cached system font names
+- shortcut bindings
+- global auto-detect setting
+- per-site auto-detect setting
+- per-site selectors remembered with `⇧`+click
+
+One-off toggles are **not** saved. Reloading a page restores the site's original layout unless auto-detect is on or an element matches a remembered selector for that site.
+
+## Development
+
+Requirements:
+
+- Node.js `>=22.18`
+- pnpm `10.27.0`
+
+Install dependencies:
+
+```bash
+pnpm install
+```
+
+Build the userscript:
+
+```bash
+pnpm run build
+```
+
+Run all checks:
+
+```bash
+pnpm run check
+```
+
+`check` runs formatting, TypeScript, Node logic tests, a build, and the automated browser smoke test.
+
+### Local UI harness
+
+Use the harness when developing UI states without reinstalling the userscript:
+
+```bash
+pnpm run dev:harness
+```
+
+Then open:
+
+```text
+test/harness.html
+```
+
+The harness shims the Tampermonkey APIs and includes local scenarios for:
+
+- auto-detect content
+- protected code/pre content
+- pick-mode targets
+- remembered selectors
+- overflow clipping checks
+- contenteditable fallback behavior
+- settings panel states
+- font permission mocks
+- onboarding replay
+- light/dark theme checks
+
+### Tests
+
+Pure logic tests:
+
+```bash
+pnpm test
+```
+
+Browser smoke test:
+
+```bash
+pnpm run test:smoke
+```
+
+The smoke test serves `test/smoke.html`, opens it in Playwright/Chromium, waits for PASS/FAIL output, and exits non-zero on failures or page errors.
+
+## Project structure
+
+| Path                    | Purpose                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| `src/main.ts`           | Entry point: menu commands, keyboard handling, observer wiring  |
+| `src/core.ts`           | Apply/revert/toggle logic for elements and text selections      |
+| `src/auto.ts`           | Auto-detect scanning and per-site/global auto state             |
+| `src/pick.ts`           | Pick mode, hover tracking, depth navigation                     |
+| `src/overlay.ts`        | Highlight boxes, feedback tags, pick HUD, border beam           |
+| `src/panel.ts`          | Settings panel UI                                               |
+| `src/onboard.ts`        | First-run onboarding card                                       |
+| `src/sites.ts`          | Remembered selector application                                 |
+| `src/selector.ts`       | Stable selector generation guards                               |
+| `src/keys.ts`           | Shortcut parsing, formatting, matching                          |
+| `src/styles.ts`         | Injected RTL typography/style rules                             |
+| `test/logic.test.ts`    | Node tests for pure logic                                       |
+| `test/smoke.html`       | Browser smoke page                                              |
+| `test/smoke-runner.mjs` | Automated Playwright smoke runner                               |
+| `test/harness.html`     | Manual local development harness                                |
+| `build.mjs`             | Bundles `src/main.ts` into `rtl-anywhere.user.js` with metadata |
 
 ## Permissions
 
-The script asks for broad access because of what it does, and nothing more:
+The userscript asks for broad access because the feature is broad: it needs to be ready on whatever page you decide to toggle.
 
-| Grant                                   | Why                                                                                                     |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `@match *://*/*`                        | "Anywhere" is the feature — it has to be able to run on any page you press the shortcut on              |
-| `unsafeWindow`                          | Only to call `queryLocalFonts()` on the real page window; it fails through the userscript sandbox proxy |
-| `GM_getValue` / `GM_setValue`           | The settings above                                                                                      |
-| `GM_addStyle`, `GM_registerMenuCommand` | Injected CSS and the Tampermonkey menu entries                                                          |
+| Grant                         | Why                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `@match *://*/*`              | "Anywhere" is the feature — the script must be available on any page where you press the shortcut       |
+| `unsafeWindow`                | Only to call `queryLocalFonts()` on the real page window; it fails through the userscript sandbox proxy |
+| `GM_getValue` / `GM_setValue` | Store settings locally in the userscript manager                                                        |
+| `GM_addStyle`                 | Inject the RTL typography and UI styles                                                                 |
+| `GM_registerMenuCommand`      | Add Pick mode, Undo, and Settings actions to the userscript menu                                        |
 
-There is no `GM_xmlhttpRequest`, no `fetch`, no analytics: the script makes no network
-requests at all.
+There is no `GM_xmlhttpRequest`, no `fetch`, no remote config, and no analytics.
 
-## Notes
+## Troubleshooting
 
-- Add a selector to `PROTECTED` in the script if a site's code blocks aren't detected.
-- Inside cross-origin iframes the first-run card is suppressed, but shortcuts still work.
+### The font list does not load
+
+The Local Font Access API is browser- and context-dependent. Try opening Settings on an HTTPS page in Chrome/Edge/Brave. If permission is blocked, use the browser site settings to allow font access, or type the font name manually.
+
+### A code block became RTL
+
+Add a more specific selector to `PROTECTED` in `src/constants.ts`, then add a smoke/harness case for that site pattern.
+
+### The wrong element toggles
+
+Use pick mode and adjust depth with `↑` / `↓` or `⌥`+wheel before clicking. If the choice should persist, use `⇧`+click to remember the selector for the site.
+
+### The onboarding card does not appear
+
+It is shown once and only in the top frame. In the local harness, use **Show onboarding** to replay it.
+
+### The install link uses `rtl-anywhere`
+
+That is intentional. The distributed userscript metadata and install links target the public `rtl-anywhere` repository.
 
 ## License
 
