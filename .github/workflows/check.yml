@@ -17,10 +17,6 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec prettier --check .
-      - run: pnpm exec tsc -p tsconfig.json
-      - run: node --test test/*.test.ts
-      # The bundle is committed so the raw-GitHub install link works. Rebuild it and
-      # fail if the result differs: that means src/ and the committed file diverged.
-      - run: pnpm run build
-      - run: git diff --exit-code -- rtl-anywhere.user.js
+      # Keep CI aligned with the local gate documented in package.json.
+      # This includes formatting, TypeScript, Node tests, bundle freshness, and browser smoke tests.
+      - run: pnpm run check
