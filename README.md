@@ -197,7 +197,8 @@ Before changing permissions, storage, or page integration behavior, review [SECU
 | `src/panel.ts`           | Settings panel behavior and event wiring                        |
 | `src/panel-markup.ts`    | Settings panel markup                                           |
 | `src/ui-css.ts`          | Shared UI CSS for onboarding/settings surfaces                  |
-| `src/onboard.ts`         | First-run onboarding card                                       |
+| `src/onboard.ts`         | First-run onboarding behavior                                   |
+| `src/onboard-markup.ts`  | First-run onboarding markup                                     |
 | `src/sites.ts`           | Remembered selector application                                 |
 | `src/selector.ts`        | Stable selector generation guards                               |
 | `src/keys.ts`            | Shortcut parsing, formatting, matching                          |
