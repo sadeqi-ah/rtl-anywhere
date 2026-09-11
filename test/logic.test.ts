@@ -3,7 +3,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { rtlRatio, isMostlyRTL } from "../src/text.ts";
-import { formatCombo, matches, sameCombo, keyName } from "../src/keys.ts";
+import {
+  formatCombo,
+  matches,
+  sameCombo,
+  keyName,
+  isModifierCode,
+} from "../src/keys.ts";
 import type { Combo } from "../src/keys.ts";
 import { stableClass, stableId } from "../src/selector.ts";
 import { AUTO_RATIO } from "../src/constants.ts";
@@ -53,6 +59,24 @@ test("formatCombo renders mac and non-mac shortcuts", () => {
   assert.equal(keyName("ArrowUp"), "↑");
 });
 
+test("keyName renders common non-letter shortcut codes", () => {
+  assert.equal(keyName("Space"), "Space");
+  assert.equal(keyName("Enter"), "↵");
+  assert.equal(keyName("Backspace"), "⌫");
+  assert.equal(keyName("NumpadAdd"), "Num Add");
+  assert.equal(keyName("F8"), "F8");
+});
+
+test("isModifierCode recognizes modifier-only recorder events", () => {
+  assert.ok(isModifierCode("ShiftLeft"));
+  assert.ok(isModifierCode("ControlRight"));
+  assert.ok(isModifierCode("AltLeft"));
+  assert.ok(isModifierCode("MetaRight"));
+  assert.ok(isModifierCode("OSLeft"));
+  assert.ok(!isModifierCode("KeyR"));
+  assert.ok(!isModifierCode("F8"));
+});
+
 test("matches requires every modifier to agree", () => {
   const toggle = combo({ alt: true });
   const ev = (o: Record<string, boolean>) => ({
@@ -89,4 +113,14 @@ test("selector guards reject generated names", () => {
   assert.ok(!stableId("a1b2c3d4e5")); // hex hash
   assert.ok(!stableId(":r0:")); // React useId
   assert.ok(!stableId(""));
+});
+
+test("selector guards accept semantic names and reject volatile variants", () => {
+  assert.ok(stableClass("comment-body"));
+  assert.ok(stableClass("prose"));
+  assert.ok(!stableClass("has-focus"));
+  assert.ok(!stableClass("selected"));
+  assert.ok(!stableClass("open-menu"));
+  assert.ok(stableId("article-main"));
+  assert.ok(!stableId("post-1234"));
 });
