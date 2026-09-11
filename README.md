@@ -121,12 +121,18 @@ Run all checks:
 pnpm run check
 ```
 
-`check` runs formatting, TypeScript, Node logic tests, a build, verifies that the committed userscript bundle is not stale, and runs the automated browser smoke test. GitHub Actions runs the same command, so CI and local checks should stay aligned.
+`check` runs formatting, TypeScript, Node logic tests, the privacy/security scan, a build, verifies that the committed userscript bundle is not stale, and runs the automated browser smoke test. GitHub Actions runs the same command, so CI and local checks should stay aligned.
 
 Verify only the committed bundle:
 
 ```bash
 pnpm run check:bundle
+```
+
+Run only the network API safety scan:
+
+```bash
+pnpm run test:security
 ```
 
 ### Local UI harness
@@ -158,7 +164,7 @@ The harness shims the Tampermonkey APIs and includes local scenarios for:
 
 ### Tests
 
-Pure logic tests:
+Pure logic and security tests:
 
 ```bash
 pnpm test
@@ -178,29 +184,30 @@ Before changing permissions, storage, or page integration behavior, review [SECU
 
 ## Project structure
 
-| Path                    | Purpose                                                         |
-| ----------------------- | --------------------------------------------------------------- |
-| `src/main.ts`           | Entry point: menu commands, keyboard handling, observer wiring  |
-| `src/core.ts`           | Apply/revert/toggle logic for elements and text selections      |
-| `src/auto.ts`           | Auto-detect scanning and per-site/global auto state             |
-| `src/pick.ts`           | Pick mode, hover tracking, depth navigation                     |
-| `src/overlay.ts`        | Overlay behavior: hover boxes, feedback tags, HUD, beam toggle  |
-| `src/overlay-markup.ts` | Shadow-root markup and CSS for the overlay/HUD/beam             |
-| `src/panel.ts`          | Settings panel behavior and event wiring                        |
-| `src/panel-markup.ts`   | Settings panel markup                                           |
-| `src/ui-css.ts`         | Shared UI CSS for onboarding/settings surfaces                  |
-| `src/onboard.ts`        | First-run onboarding card                                       |
-| `src/sites.ts`          | Remembered selector application                                 |
-| `src/selector.ts`       | Stable selector generation guards                               |
-| `src/keys.ts`           | Shortcut parsing, formatting, matching                          |
-| `src/shortcuts.ts`      | Shortcut persistence and recorder behavior                      |
-| `src/styles.ts`         | Injected RTL typography/style rules                             |
-| `.github/workflows/`    | CI workflow running the unified local check command             |
-| `test/logic.test.ts`    | Node tests for pure logic                                       |
-| `test/smoke.html`       | Browser smoke page                                              |
-| `test/smoke-runner.mjs` | Automated Playwright smoke runner                               |
-| `test/harness.html`     | Manual local development harness                                |
-| `build.mjs`             | Bundles `src/main.ts` into `rtl-anywhere.user.js` with metadata |
+| Path                     | Purpose                                                         |
+| ------------------------ | --------------------------------------------------------------- |
+| `src/main.ts`            | Entry point: menu commands, keyboard handling, observer wiring  |
+| `src/core.ts`            | Apply/revert/toggle logic for elements and text selections      |
+| `src/auto.ts`            | Auto-detect scanning and per-site/global auto state             |
+| `src/pick.ts`            | Pick mode, hover tracking, depth navigation                     |
+| `src/overlay.ts`         | Overlay behavior: hover boxes, feedback tags, HUD, beam toggle  |
+| `src/overlay-markup.ts`  | Shadow-root markup and CSS for the overlay/HUD/beam             |
+| `src/panel.ts`           | Settings panel behavior and event wiring                        |
+| `src/panel-markup.ts`    | Settings panel markup                                           |
+| `src/ui-css.ts`          | Shared UI CSS for onboarding/settings surfaces                  |
+| `src/onboard.ts`         | First-run onboarding card                                       |
+| `src/sites.ts`           | Remembered selector application                                 |
+| `src/selector.ts`        | Stable selector generation guards                               |
+| `src/keys.ts`            | Shortcut parsing, formatting, matching                          |
+| `src/shortcuts.ts`       | Shortcut persistence and recorder behavior                      |
+| `src/styles.ts`          | Injected RTL typography/style rules                             |
+| `.github/workflows/`     | CI workflow running the unified local check command             |
+| `test/logic.test.ts`     | Node tests for pure logic                                       |
+| `test/security-scan.mjs` | Network API safety scan                                         |
+| `test/smoke.html`        | Browser smoke page                                              |
+| `test/smoke-runner.mjs`  | Automated Playwright smoke runner                               |
+| `test/harness.html`      | Manual local development harness                                |
+| `build.mjs`              | Bundles `src/main.ts` into `rtl-anywhere.user.js` with metadata |
 
 ## Permissions
 
