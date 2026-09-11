@@ -121,7 +121,7 @@ Run all checks:
 pnpm run check
 ```
 
-`check` runs formatting, TypeScript, Node logic tests, a build, verifies that the committed userscript bundle is not stale, and runs the automated browser smoke test.
+`check` runs formatting, TypeScript, Node logic tests, a build, verifies that the committed userscript bundle is not stale, and runs the automated browser smoke test. GitHub Actions runs the same command, so CI and local checks should stay aligned.
 
 Verify only the committed bundle:
 
@@ -170,7 +170,7 @@ Browser smoke test:
 pnpm run test:smoke
 ```
 
-The smoke test serves `test/smoke.html`, opens it in Playwright/Chromium, waits for PASS/FAIL output, and exits non-zero on failures or page errors.
+The smoke test serves `test/smoke.html`, opens it in Playwright/Chromium, waits for PASS/FAIL output, and exits non-zero on failures or page errors. It covers auto-detect, remembered site rules, selection handling, editable handling, onboarding, settings toggles, shortcut recording, menu commands, and overlay/HUD behavior.
 
 ### Security and privacy review
 
@@ -184,13 +184,18 @@ Before changing permissions, storage, or page integration behavior, review [SECU
 | `src/core.ts`           | Apply/revert/toggle logic for elements and text selections      |
 | `src/auto.ts`           | Auto-detect scanning and per-site/global auto state             |
 | `src/pick.ts`           | Pick mode, hover tracking, depth navigation                     |
-| `src/overlay.ts`        | Highlight boxes, feedback tags, pick HUD, border beam           |
-| `src/panel.ts`          | Settings panel UI                                               |
+| `src/overlay.ts`        | Overlay behavior: hover boxes, feedback tags, HUD, beam toggle  |
+| `src/overlay-markup.ts` | Shadow-root markup and CSS for the overlay/HUD/beam             |
+| `src/panel.ts`          | Settings panel behavior and event wiring                        |
+| `src/panel-markup.ts`   | Settings panel markup                                           |
+| `src/ui-css.ts`         | Shared UI CSS for onboarding/settings surfaces                  |
 | `src/onboard.ts`        | First-run onboarding card                                       |
 | `src/sites.ts`          | Remembered selector application                                 |
 | `src/selector.ts`       | Stable selector generation guards                               |
 | `src/keys.ts`           | Shortcut parsing, formatting, matching                          |
+| `src/shortcuts.ts`      | Shortcut persistence and recorder behavior                      |
 | `src/styles.ts`         | Injected RTL typography/style rules                             |
+| `.github/workflows/`    | CI workflow running the unified local check command             |
 | `test/logic.test.ts`    | Node tests for pure logic                                       |
 | `test/smoke.html`       | Browser smoke page                                              |
 | `test/smoke-runner.mjs` | Automated Playwright smoke runner                               |
