@@ -1204,26 +1204,9 @@
       .rule code { color: #888888; background: transparent; }
     }`;
 
-  // src/panel.ts
-  var panelHost = null;
-  var panelOpen = () => panelHost;
-  var onOutsideDown = (e) => {
-    if (panelHost && !e.composedPath().includes(panelHost)) closePanel();
-  };
-  function closePanel() {
-    if (!panelHost) return;
-    stopRecord();
-    drawHover(null);
-    panelHost.remove();
-    panelHost = null;
-    document.removeEventListener("mousedown", onOutsideDown, true);
-  }
-  function openPanel(tab = "font") {
-    closePanel();
-    const host2 = document.createElement("div");
-    panelHost = host2;
-    const root = host2.attachShadow({ mode: "open" });
-    root.innerHTML = `
+  // src/panel-markup.ts
+  function panelMarkup() {
+    return `
       <style>${UI_CSS}</style>
       <div class="panel">
         <div class="hdr">
@@ -1280,6 +1263,28 @@
           <div class="ftr"><span class="msg sites-msg"></span><button class="btn forget">Forget this site</button></div>
         </div>
       </div>`;
+  }
+
+  // src/panel.ts
+  var panelHost = null;
+  var panelOpen = () => panelHost;
+  var onOutsideDown = (e) => {
+    if (panelHost && !e.composedPath().includes(panelHost)) closePanel();
+  };
+  function closePanel() {
+    if (!panelHost) return;
+    stopRecord();
+    drawHover(null);
+    panelHost.remove();
+    panelHost = null;
+    document.removeEventListener("mousedown", onOutsideDown, true);
+  }
+  function openPanel(tab = "font") {
+    closePanel();
+    const host2 = document.createElement("div");
+    panelHost = host2;
+    const root = host2.attachShadow({ mode: "open" });
+    root.innerHTML = panelMarkup();
     document.documentElement.appendChild(host2);
     document.addEventListener("mousedown", onOutsideDown, true);
     const $ = (s) => root.querySelector(s);
