@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -31,7 +30,9 @@ const server = createServer(async (req, res) => {
     });
     res.end(body);
   } catch (error) {
-    res.writeHead(404).end(error instanceof Error ? error.message : "Not found");
+    res
+      .writeHead(404)
+      .end(error instanceof Error ? error.message : "Not found");
   }
 });
 
@@ -50,8 +51,20 @@ page.on("console", (message) => {
 
 try {
   await page.goto(`http://127.0.0.1:${address.port}/test/smoke.html`);
-  const output = await page.locator("#out").textContent({ timeout: 5_000 });
-  if (!output) throw new Error("Smoke test produced no output");
+
+  await page.waitForFunction(
+    () => {
+      const text = document.getElementById("out")?.textContent ?? "";
+      return text.includes("PASS") || text.includes("FAIL");
+    },
+    undefined,
+    { timeout: 5_000 },
+  );
+
+  const output = await page.locator("#out").textContent();
+  if (!output || output.trim() === "running…") {
+    throw new Error("Smoke test did not finish before the timeout");
+  }
 
   console.log(output);
 
