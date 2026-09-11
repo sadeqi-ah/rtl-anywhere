@@ -75,6 +75,12 @@
         );
       }
 
+      function windowKeydown(code, mods) {
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", { code, bubbles: true, ...mods }),
+        );
+      }
+
       function selectText(node, start, end) {
         const range = document.createRange();
         range.setStart(node, start);
@@ -119,8 +125,6 @@
           "Dynamic saved rule target should become RTL later.";
         document.body.insertBefore(dynamic, document.getElementById("out"));
 
-        // Wait before any Undo action: undoAll pauses observers, so this specifically
-        // verifies the normal live-content path while observers are still active.
         setTimeout(() => {
           check(
             "site: remembered selector applies to changed content",
@@ -209,6 +213,23 @@
             "panel has Font / Shortcuts / Auto / Sites tabs",
             JSON.stringify(tabs) ===
               JSON.stringify(["Font", "Shortcuts", "Auto", "Sites"]),
+          );
+
+          const keysTab = panel.querySelector('[data-tab="keys"]');
+          keysTab.click();
+          const toggleButton = panel.querySelector('[data-sc="toggle"]');
+          toggleButton.click();
+          windowKeydown("KeyY", {
+            altKey: true,
+            shiftKey: false,
+            ctrlKey: false,
+            metaKey: false,
+          });
+          check(
+            "shortcuts: recorder saves a changed toggle combo",
+            store.shortcuts?.toggle?.code === "KeyY" &&
+              store.shortcuts.toggle.alt === true &&
+              toggleButton.textContent.includes("Y"),
           );
 
           const shadows = [...document.documentElement.children]
