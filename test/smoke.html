@@ -23,6 +23,7 @@
       const host = location.hostname;
       const store = {
         "auto-detect": true,
+        "auto-detect-sites": [],
         onboarded: true,
         "site-rules": { [host]: [".saved-rule"] },
       };
@@ -213,6 +214,25 @@
             "panel has Font / Shortcuts / Auto / Sites tabs",
             JSON.stringify(tabs) ===
               JSON.stringify(["Font", "Shortcuts", "Auto", "Sites"]),
+          );
+
+          const autoTab = panel.querySelector('[data-tab="auto"]');
+          autoTab.click();
+          const globalAuto = panel.querySelector(".auto-global");
+          const siteAuto = panel.querySelector(".auto-site");
+          check(
+            "auto settings: global toggle reflects storage",
+            globalAuto.checked === true,
+          );
+          globalAuto.click();
+          check(
+            "auto settings: global toggle persists off",
+            store["auto-detect"] === false,
+          );
+          siteAuto.click();
+          check(
+            "auto settings: site toggle persists current host",
+            store["auto-detect-sites"].includes(host),
           );
 
           const keysTab = panel.querySelector('[data-tab="keys"]');
