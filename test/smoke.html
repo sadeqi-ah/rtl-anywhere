@@ -54,6 +54,9 @@
       Dynamic saved rule target should become RTL later.
     </p>
     <p id="target">Toggle me with the shortcut</p>
+    <p id="remember-target" class="remember-target">
+      Remember this selector through pick mode.
+    </p>
     <p id="selection-target">Before selected Persian text after.</p>
     <p id="protected-selection">
       Before <code id="protected-code">code should stay alone</code> after.
@@ -174,6 +177,32 @@
             "Alt+R toggled it back off",
             !has("target") && !t.hasAttribute("dir"),
           );
+
+          const rememberTarget = document.getElementById("remember-target");
+          window.__menu["Pick mode"]();
+          rememberTarget.dispatchEvent(
+            new MouseEvent("mousemove", {
+              bubbles: true,
+              clientX: 10,
+              clientY: 10,
+            }),
+          );
+          rememberTarget.dispatchEvent(
+            new MouseEvent("click", {
+              bubbles: true,
+              cancelable: true,
+              shiftKey: true,
+            }),
+          );
+          check(
+            "pick: Shift+click remembers a selector",
+            has("remember-target") &&
+              rememberTarget.dataset.tmRtlSrc === "site" &&
+              (store["site-rules"]?.[host] ?? []).some((rule) =>
+                rule.includes("remember-target"),
+              ),
+          );
+          keydown("Escape", {});
 
           const selectionTarget = document.getElementById("selection-target");
           const text = selectionTarget.firstChild;
