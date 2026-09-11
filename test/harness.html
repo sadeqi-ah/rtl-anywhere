@@ -223,6 +223,7 @@
         <button onclick="window.__menu?.['Undo all on this page']?.()">
           Undo all
         </button>
+        <button onclick="window.__showOnboarding?.()">Show onboarding</button>
       </div>
     </header>
 
@@ -322,6 +323,14 @@ function stayLtr() {
           null,
           2,
         );
+      };
+      window.__showOnboarding = () => {
+        store.onboarded = false;
+        window.__renderStore();
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { code: "Escape", bubbles: true }),
+        );
+        setTimeout(() => location.reload(), 0);
       };
       window.__renderStore();
     </script>
