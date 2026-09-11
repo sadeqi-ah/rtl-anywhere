@@ -34,7 +34,10 @@ export function maybeOnboard(): void {
     dismissOnboard();
     openPanel();
   });
-  root.querySelector<HTMLInputElement>(".auto")?.addEventListener("change", (e) => {
-    if (e.currentTarget instanceof HTMLInputElement) setAuto(e.currentTarget.checked);
-  });
+  root
+    .querySelector<HTMLInputElement>(".auto")
+    ?.addEventListener("change", (e) => {
+      if (e.currentTarget instanceof HTMLInputElement)
+        setAuto(e.currentTarget.checked);
+    });
 }

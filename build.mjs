@@ -20,9 +20,9 @@ await build({
   charset: "utf8",
   // Userscripts are distributed as source: reviewers and script hosts read this file.
   minify: false,
-  // esbuild emits no directive of its own, and a userscript manager may run the
-  // bundle in sloppy mode — so state it explicitly inside the IIFE.
-  banner: { js: `${header.trimEnd()}\n"use strict";` },
+  // esbuild wraps IIFE bundles with its own strict directive. Keep the
+  // userscript metadata banner separate so the generated file has one.
+  banner: { js: header.trimEnd() },
 });
 
 console.log(`built ${outfile} from src/ (v${pkg.version})`);
