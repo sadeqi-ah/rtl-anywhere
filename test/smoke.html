@@ -51,7 +51,12 @@
     </style>
     <script>
       // --- GM_* shim: enough of the API for the bundle to run in a plain page ---
-      const store = { "auto-detect": true, onboarded: true };
+      const host = location.hostname;
+      const store = {
+        "auto-detect": true,
+        onboarded: true,
+        sites: { [host]: ["#saved-rule"] },
+      };
       window.GM_getValue = (k, d) => (k in store ? store[k] : d);
       window.GM_setValue = (k, v) => (store[k] = v);
       window.GM_registerMenuCommand = (label, fn) =>
@@ -75,6 +80,8 @@
     <p id="en">This paragraph is English and must stay left to right.</p>
     <p id="mix">سلام دنیا <code id="code">const x = 1;</code> و ادامه متن.</p>
     <pre id="pre">preformatted block stays LTR</pre>
+    <p id="saved-rule">Saved site rule target should start RTL.</p>
+    <p id="dynamic-saved-rule">Dynamic saved rule target should become RTL later.</p>
     <p id="target">Toggle me with the shortcut</p>
     <p id="selection-target">Before selected Persian text after.</p>
     <p id="protected-selection">
@@ -127,6 +134,15 @@
           "auto: <pre> never becomes RTL",
           !has("pre") && dir("pre") === "ltr",
         );
+
+        // --- saved site rules ---
+        check(
+          "site: remembered selector applies on load",
+          has("saved-rule") &&
+            document.getElementById("saved-rule").dataset.tmRtlSrc === "site",
+        );
+        const dynamic = document.getElementById("dynamic-saved-rule");
+        dynamic.id = "saved-rule";
 
         // --- toggle shortcut on the hovered element (Alt+R) ---
         const t = document.getElementById("target");
@@ -243,14 +259,19 @@
           hud?.textContent.includes("⌥") && hud?.textContent.includes("⇧"),
         );
 
-        // The whole look depends on one being blurred and the other crisp.
-        // (Visual check only now, as we removed the custom DOM structure).
-        // (Pick mode is left ON here so the screenshot captures it).
+        // Give the observer a chance to apply site rules to the renamed dynamic target.
+        setTimeout(() => {
+          check(
+            "site: remembered selector applies to changed content",
+            dynamic.classList.contains("tm-rtl") &&
+              dynamic.dataset.tmRtlSrc === "site",
+          );
 
-        const failed = results.filter((r) => r.startsWith("FAIL")).length;
-        document.getElementById("out").textContent =
-          results.join("\n") +
-          `\n\n${results.length - failed}/${results.length} passed`;
+          const failed = results.filter((r) => r.startsWith("FAIL")).length;
+          document.getElementById("out").textContent =
+            results.join("\n") +
+            `\n\n${results.length - failed}/${results.length} passed`;
+        }, 350);
       }, 1500);
     </script>
   </body>
