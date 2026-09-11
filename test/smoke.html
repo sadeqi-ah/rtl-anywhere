@@ -1,0 +1,194 @@
+<!doctype html>
+<!--
+  Browser smoke test. Open this file directly (file://) after `pnpm run build`:
+  it shims the GM_* API, loads the built userscript, and asserts on the result.
+  Complements `pnpm test`, which covers the pure logic in Node.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>RTL Anywhere smoke test</title>
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --fg: #e6e8ee;
+      }
+      :root.light {
+        --bg: #f9fafb;
+        --fg: #111827;
+      }
+      body {
+        font:
+          14px ui-monospace,
+          Menlo,
+          monospace;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--fg);
+        transition:
+          background 0.2s,
+          color 0.2s;
+      }
+      #out {
+        white-space: pre;
+        margin-top: 20px;
+        border-top: 1px solid #ccc;
+        padding-top: 10px;
+      }
+      .toggle-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 8px 16px;
+        background: var(--fg);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+        z-index: 99999;
+      }
+    </style>
+    <script>
+      // --- GM_* shim: enough of the API for the bundle to run in a plain page ---
+      const store = { "auto-detect": true, onboarded: true };
+      window.GM_getValue = (k, d) => (k in store ? store[k] : d);
+      window.GM_setValue = (k, v) => (store[k] = v);
+      window.GM_registerMenuCommand = (label, fn) =>
+        ((window.__menu ??= {})[label] = fn);
+      window.GM_addStyle = (css) => {
+        const s = document.createElement("style");
+        s.textContent = css;
+        (document.head || document.documentElement).appendChild(s);
+        return s;
+      };
+    </script>
+  </head>
+  <body>
+    <button
+      class="toggle-btn"
+      onclick="document.documentElement.classList.toggle('light')"
+    >
+      Toggle Light/Dark
+    </button>
+    <p id="fa">این یک پاراگراف فارسی است که باید راست‌چین شود.</p>
+    <p id="en">This paragraph is English and must stay left to right.</p>
+    <p id="mix">سلام دنیا <code id="code">const x = 1;</code> و ادامه متن.</p>
+    <pre id="pre">preformatted block stays LTR</pre>
+    <p id="target">Toggle me with the shortcut</p>
+    <div id="out">running…</div>
+
+    <script src="../rtl-anywhere.user.js"></script>
+    <script>
+      const dir = (id) =>
+        getComputedStyle(document.getElementById(id)).direction;
+      const has = (id) =>
+        document.getElementById(id).classList.contains("tm-rtl");
+      const results = [];
+      const check = (name, cond) =>
+        results.push((cond ? "PASS  " : "FAIL  ") + name);
+
+      function keydown(code, mods) {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { code, bubbles: true, ...mods }),
+        );
+      }
+
+      // The initial scan runs on requestIdleCallback, so give it a moment.
+      setTimeout(() => {
+        // --- auto-detect (enabled via the shim store) ---
+        check(
+          "auto: Persian paragraph became RTL",
+          has("fa") && dir("fa") === "rtl",
+        );
+        check(
+          "auto: English paragraph left alone",
+          !has("en") && dir("en") === "ltr",
+        );
+        check("auto: mixed paragraph became RTL", has("mix"));
+        check("auto: <code> inside RTL stays LTR", dir("code") === "ltr");
+        check(
+          "auto: <pre> never becomes RTL",
+          !has("pre") && dir("pre") === "ltr",
+        );
+
+        // --- toggle shortcut on the hovered element (Alt+R) ---
+        const t = document.getElementById("target");
+        t.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+        keydown("KeyR", { altKey: true });
+        check("Alt+R toggled the hovered element on", has("target"));
+        keydown("KeyR", { altKey: true });
+        check(
+          "Alt+R toggled it back off",
+          !has("target") && !t.hasAttribute("dir"),
+        );
+
+        // --- undo all (Alt+Shift+Z) ---
+        keydown("KeyZ", { altKey: true, shiftKey: true });
+        check(
+          "Alt+Shift+Z reverted the auto-detected elements",
+          !has("fa") && !has("mix"),
+        );
+
+        // --- menu commands registered ---
+        check(
+          "menu commands registered",
+          !!window.__menu &&
+            ["Pick mode", "Undo all on this page", "Settings…"].every(
+              (k) => typeof window.__menu[k] === "function",
+            ),
+        );
+
+        // --- settings panel opens in a shadow root with all four tabs ---
+        window.__menu["Settings…"]();
+        const panel = [...document.documentElement.children]
+          .filter((n) => n.shadowRoot)
+          .map((h) => h.shadowRoot.querySelector(".panel"))
+          .find(Boolean);
+        const tabs = panel
+          ? [...panel.querySelectorAll(".tab")].map((b) => b.textContent)
+          : [];
+        check("settings panel rendered in a shadow root", !!panel);
+        check(
+          "panel has Font / Shortcuts / Auto / Sites tabs",
+          JSON.stringify(tabs) ===
+            JSON.stringify(["Font", "Shortcuts", "Auto", "Sites"]),
+        );
+
+        // --- pick mode: the border beam ---
+        const shadows = [...document.documentElement.children]
+          .filter((n) => n.shadowRoot)
+          .map((n) => n.shadowRoot);
+        const sq = (sel) =>
+          shadows.map((r) => r.querySelector(sel)).find(Boolean);
+        const beam = sq(".beam");
+        check("beam layers exist in the overlay shadow root", !!beam);
+        check(
+          "beam hidden before pick mode",
+          beam && !beam.classList.contains("on"),
+        );
+
+        window.__menu["Pick mode"]();
+        check("beam shown in pick mode", beam && beam.classList.contains("on"));
+        const hud = sq(".hud");
+        check(
+          "pick HUD slides on through its state class",
+          hud?.classList.contains("on"),
+        );
+        check(
+          "pick HUD uses Mac modifier glyphs",
+          hud?.textContent.includes("⌥") && hud?.textContent.includes("⇧"),
+        );
+
+        // The whole look depends on one being blurred and the other crisp.
+        // (Visual check only now, as we removed the custom DOM structure).
+        // (Pick mode is left ON here so the screenshot captures it).
+
+        const failed = results.filter((r) => r.startsWith("FAIL")).length;
+        document.getElementById("out").textContent =
+          results.join("\n") +
+          `\n\n${results.length - failed}/${results.length} passed`;
+      }, 1500);
+    </script>
+  </body>
+</html>

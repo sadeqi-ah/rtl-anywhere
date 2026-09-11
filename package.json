@@ -1,0 +1,38 @@
+{
+  "name": "rtl-anywhere",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Userscript that makes any text on any website right-to-left with one shortcut.",
+  "license": "MIT",
+  "author": "sadeqi-ah",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sadeqi-ah/rtl-anywhere.git"
+  },
+  "keywords": [
+    "userscript",
+    "tampermonkey",
+    "rtl",
+    "persian",
+    "arabic",
+    "hebrew"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.ts",
+    "format": "prettier --write .",
+    "check": "prettier --check . && tsc -p tsconfig.json && node --test test/*.test.ts && node build.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "esbuild": "0.28.2",
+    "prettier": "3.5.2",
+    "typescript": "5.7.3"
+  },
+  "packageManager": "pnpm@10.27.0"
+}

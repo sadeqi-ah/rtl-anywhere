@@ -1,0 +1,20 @@
+// ==UserScript==
+// @name         RTL Anywhere
+// @namespace    rtl-anywhere
+// @version      {{version}}
+// @description  Any text, any site, one shortcut. Alt+R toggles RTL on the selection or hovered element, Alt+Shift+R opens pick mode, Alt+Shift+Z undoes everything. Auto-detect, per-site memory, custom font & shortcuts.
+// @match        *://*/*
+// @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
+// @run-at       document-idle
+// @author       sadeqi-ah
+// @license      MIT
+// @homepageURL  https://github.com/sadeqi-ah/rtl-anywhere
+// @supportURL   https://github.com/sadeqi-ah/rtl-anywhere/issues
+// @downloadURL  https://raw.githubusercontent.com/sadeqi-ah/rtl-anywhere/main/rtl-anywhere.user.js
+// @updateURL    https://raw.githubusercontent.com/sadeqi-ah/rtl-anywhere/main/rtl-anywhere.user.js
+// @icon         https://raw.githubusercontent.com/sadeqi-ah/rtl-anywhere/main/assets/icon.png
+// ==/UserScript==

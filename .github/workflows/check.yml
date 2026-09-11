@@ -1,0 +1,26 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Must run before setup-node, so that `cache: pnpm` can find the binary.
+      # The version comes from the packageManager field in package.json.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prettier --check .
+      - run: pnpm exec tsc -p tsconfig.json
+      - run: node --test test/*.test.ts
+      # The bundle is committed so the raw-GitHub install link works. Rebuild it and
+      # fail if the result differs: that means src/ and the committed file diverged.
+      - run: pnpm run build
+      - run: git diff --exit-code -- rtl-anywhere.user.js
