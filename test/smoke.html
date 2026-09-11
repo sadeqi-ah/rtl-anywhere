@@ -76,6 +76,13 @@
     <p id="mix">سلام دنیا <code id="code">const x = 1;</code> و ادامه متن.</p>
     <pre id="pre">preformatted block stays LTR</pre>
     <p id="target">Toggle me with the shortcut</p>
+    <p id="selection-target">Before selected Persian text after.</p>
+    <p id="protected-selection">
+      Before <code id="protected-code">code should stay alone</code> after.
+    </p>
+    <div id="editor" contenteditable="true">
+      Editable Persian text should toggle as a block.
+    </div>
     <div id="out">running…</div>
 
     <script src="../rtl-anywhere.user.js"></script>
@@ -92,6 +99,15 @@
         document.dispatchEvent(
           new KeyboardEvent("keydown", { code, bubbles: true, ...mods }),
         );
+      }
+
+      function selectText(node, start, end) {
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        const selection = getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
       }
 
       // The initial scan runs on requestIdleCallback, so give it a moment.
@@ -123,11 +139,58 @@
           !has("target") && !t.hasAttribute("dir"),
         );
 
+        // --- DOM selection wrapping ---
+        const selectionTarget = document.getElementById("selection-target");
+        const text = selectionTarget.firstChild;
+        const selectedStart = text.nodeValue.indexOf("selected");
+        const selectedEnd = selectedStart + "selected Persian text".length;
+        selectText(text, selectedStart, selectedEnd);
+        keydown("KeyR", { altKey: true });
+        const wrapper = selectionTarget.querySelector("[data-tm-rtl-wrap]");
+        check(
+          "selection: wraps selected text only",
+          wrapper?.textContent === "selected Persian text" &&
+            wrapper.classList.contains("tm-rtl") &&
+            !selectionTarget.classList.contains("tm-rtl"),
+        );
+        selectText(wrapper.firstChild, 0, wrapper.textContent.length);
+        keydown("KeyR", { altKey: true });
+        check(
+          "selection: toggling wrapped selection unwraps it",
+          !selectionTarget.querySelector("[data-tm-rtl-wrap]") &&
+            selectionTarget.textContent ===
+              "Before selected Persian text after.",
+        );
+
+        // --- protected selection fallback ---
+        const protectedCode = document.getElementById("protected-code");
+        selectText(
+          protectedCode.firstChild,
+          0,
+          protectedCode.textContent.length,
+        );
+        keydown("KeyR", { altKey: true });
+        check(
+          "selection: protected code is not wrapped",
+          !protectedCode.querySelector("[data-tm-rtl-wrap]") &&
+            dir("protected-code") === "ltr",
+        );
+
+        // --- contenteditable fallback ---
+        const editor = document.getElementById("editor");
+        editor.focus();
+        selectText(editor.firstChild, 0, "Editable Persian text".length);
+        keydown("KeyR", { altKey: true });
+        check(
+          "selection: editor toggles block instead of injecting spans",
+          has("editor") && !editor.querySelector("[data-tm-rtl-wrap]"),
+        );
+
         // --- undo all (Alt+Shift+Z) ---
         keydown("KeyZ", { altKey: true, shiftKey: true });
         check(
           "Alt+Shift+Z reverted the auto-detected elements",
-          !has("fa") && !has("mix"),
+          !has("fa") && !has("mix") && !has("editor"),
         );
 
         // --- menu commands registered ---
