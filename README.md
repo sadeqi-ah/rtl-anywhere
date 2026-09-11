@@ -172,6 +172,10 @@ pnpm run test:smoke
 
 The smoke test serves `test/smoke.html`, opens it in Playwright/Chromium, waits for PASS/FAIL output, and exits non-zero on failures or page errors.
 
+### Security and privacy review
+
+Before changing permissions, storage, or page integration behavior, review [SECURITY.md](SECURITY.md).
+
 ## Project structure
 
 | Path                    | Purpose                                                         |
