@@ -12,12 +12,6 @@ import { isProtected, smartTarget, textNodesInRange } from "./dom.ts";
 import { flash, hudSet } from "./overlay.ts";
 import { touched, flags } from "./state.ts";
 
-const FIRST_STRONG_LTR = /^[^A-Za-z\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]*[A-Za-z]/;
-
-function rtlDirFor(el: Element): "rtl" | "auto" {
-  return FIRST_STRONG_LTR.test(el.textContent ?? "") ? "auto" : "rtl";
-}
-
 export function applyRTL(
   el: Element,
   src: RtlSource = "manual",
@@ -25,9 +19,10 @@ export function applyRTL(
 ): void {
   if (!el.hasAttribute(PREV_DIR))
     el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-  // `dir=auto` keeps an initial Latin product/feature name at the logical start
-  // of mixed text, while the class still right-aligns the block visually.
-  el.setAttribute("dir", rtlDirFor(el));
+  // Do not force dir="rtl"/"auto" here. Mixed paragraphs that start with a
+  // Latin product name (for example "auto-detect ... فارسی") keep the right
+  // visual order only when the original bidi base direction is left alone.
+  el.removeAttribute("dir");
   el.classList.add(RTL_CLASS);
   el.setAttribute(SRC_ATTR, src);
   el.removeAttribute(SKIP_ATTR);
