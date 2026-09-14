@@ -2,6 +2,7 @@
 // All values here are constants — no DOM access, no storage reads.
 
 export const RTL_CLASS = "tm-rtl";
+export const RTL_DIR_CLASS = "tm-rtl-dir";
 export const WRAP_ATTR = "data-tm-rtl-wrap"; // spans we created around selected text
 export const PREV_DIR = "data-tm-rtl-dir"; // original dir attribute, restored on revert
 export const SRC_ATTR = "data-tm-rtl-src";

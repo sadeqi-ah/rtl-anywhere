@@ -22,6 +22,7 @@
 (() => {
   // src/constants.ts
   var RTL_CLASS = "tm-rtl";
+  var RTL_DIR_CLASS = "tm-rtl-dir";
   var WRAP_ATTR = "data-tm-rtl-wrap";
   var PREV_DIR = "data-tm-rtl-dir";
   var SRC_ATTR = "data-tm-rtl-src";
@@ -114,6 +115,7 @@
   function initStyles() {
     addStyle(`
     .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
+    .${RTL_DIR_CLASS} { direction: rtl !important; }
     /* Code and math inside an RTL block always stay LTR */
     .${RTL_CLASS} :is(${PROTECTED}), .${RTL_CLASS} :is(${PROTECTED}) * {
       direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important;
@@ -538,11 +540,16 @@
   }
 
   // src/core.ts
+  var FIRST_STRONG_RTL = /^[^A-Za-z\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]*[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
   function applyRTL(el, src = "manual", quiet = false) {
     if (!el.hasAttribute(PREV_DIR))
       el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
     el.removeAttribute("dir");
     el.classList.add(RTL_CLASS);
+    el.classList.toggle(
+      RTL_DIR_CLASS,
+      FIRST_STRONG_RTL.test(el.textContent ?? "")
+    );
     el.setAttribute(SRC_ATTR, src);
     el.removeAttribute(SKIP_ATTR);
     touched.add(el);
@@ -564,7 +571,7 @@
       if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
       return;
     }
-    el.classList.remove(RTL_CLASS);
+    el.classList.remove(RTL_CLASS, RTL_DIR_CLASS);
     const prev = el.getAttribute(PREV_DIR);
     if (prev) el.setAttribute("dir", prev);
     else el.removeAttribute("dir");
