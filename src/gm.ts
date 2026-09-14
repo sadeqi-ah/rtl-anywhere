@@ -9,8 +9,6 @@ import type { Combo, ShortcutId } from "./keys.ts";
  * `getValue` from degrading to `any`.
  */
 export interface Stored {
-  [K.font]: string;
-  [K.fonts]: string[];
   [K.sc]: Partial<Record<ShortcutId, Partial<Combo>>>;
   [K.auto]: boolean;
   [K.autoSites]: string[];

@@ -19,8 +19,6 @@ export type FlashMode = "rtl" | "ltr";
 
 /** Storage keys. */
 export const K = {
-  font: "rtl-font",
-  fonts: "system-fonts",
   sc: "shortcuts",
   auto: "auto-detect",
   autoSites: "auto-detect-sites",
@@ -56,27 +54,6 @@ export const PROTECTED = [
   '[class*="code-block"]',
   '[class*="codeblock"]',
   '[class*="sourceCode"]',
-].join(",");
-
-// Elements whose font must never be replaced (icon fonts, emoji, svg)
-export const FONT_SAFE = [
-  "svg",
-  "i",
-  ".fa",
-  ".fas",
-  ".far",
-  ".fab",
-  ".fal",
-  ".fad",
-  '[class^="fa-"]',
-  '[class*=" fa-"]',
-  ".material-icons",
-  ".material-symbols-outlined",
-  ".material-symbols-rounded",
-  '[class*="icon"]',
-  '[class*="Icon"]',
-  '[class*="glyph"]',
-  '[class*="emoji"]',
 ].join(",");
 
 export const FIELDS = "input, textarea, select, button";

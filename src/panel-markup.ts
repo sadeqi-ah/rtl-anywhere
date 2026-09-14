@@ -2,7 +2,7 @@ import { HOST } from "./env.ts";
 import { esc } from "./dom.ts";
 import { UI_CSS } from "./ui-css.ts";
 
-export type PanelTab = "font" | "keys" | "auto" | "sites";
+export type PanelTab = "keys" | "auto" | "sites";
 
 export function panelMarkup(): string {
   return `
@@ -11,7 +11,7 @@ export function panelMarkup(): string {
         <div class="hdr">
           <div class="t" style="display:flex;align-items:center;gap:10px">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <div>RTL Anywhere<small>Configure behavior and appearance</small></div>
+            <div>RTL Anywhere<small>Configure behavior and shortcuts</small></div>
           </div>
           <button class="x" title="Close" aria-label="Close">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -20,19 +20,9 @@ export function panelMarkup(): string {
           </button>
         </div>
         <div class="tabs">
-          <button class="tab" data-tab="font">Font</button>
           <button class="tab" data-tab="keys">Shortcuts</button>
           <button class="tab" data-tab="auto">Auto</button>
           <button class="tab" data-tab="sites">Sites</button>
-        </div>
-
-        <div class="sec" data-sec="font">
-          <div class="q-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.29 14.71l5 5 1.42-1.42-5-5A8 8 0 0010 2zm0 14a6 6 0 116-6 6 6 0 01-6 6z"/></svg>
-            <input class="q" type="text" placeholder="Search, or type any font name…" spellcheck="false" autocomplete="off">
-          </div>
-          <div class="list"></div>
-          <div class="ftr"><span class="msg"></span><button class="btn load">Load system fonts</button></div>
         </div>
 
         <div class="sec" data-sec="keys">
