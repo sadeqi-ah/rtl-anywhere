@@ -12,6 +12,12 @@ import { isProtected, smartTarget, textNodesInRange } from "./dom.ts";
 import { flash, hudSet } from "./overlay.ts";
 import { touched, flags } from "./state.ts";
 
+const FIRST_STRONG_LTR = /^[^A-Za-z\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]*[A-Za-z]/;
+
+function rtlDirFor(el: Element): "rtl" | "auto" {
+  return FIRST_STRONG_LTR.test(el.textContent ?? "") ? "auto" : "rtl";
+}
+
 export function applyRTL(
   el: Element,
   src: RtlSource = "manual",
@@ -19,7 +25,9 @@ export function applyRTL(
 ): void {
   if (!el.hasAttribute(PREV_DIR))
     el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-  el.setAttribute("dir", "rtl"); // dir attribute fixes list markers, bidi, and works inside shadow DOM
+  // `dir=auto` keeps an initial Latin product/feature name at the logical start
+  // of mixed text, while the class still right-aligns the block visually.
+  el.setAttribute("dir", rtlDirFor(el));
   el.classList.add(RTL_CLASS);
   el.setAttribute(SRC_ATTR, src);
   el.removeAttribute(SKIP_ATTR);
