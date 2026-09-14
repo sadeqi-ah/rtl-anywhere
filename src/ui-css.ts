@@ -38,7 +38,7 @@ export const UI_CSS = `
     .ftr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; font-size: 11px; color: #9ca3af; }
     .msg { flex: 1; line-height: 1.4; }
     .btn { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; background: #f3f4f6; color: #111827; font: inherit; font-size: 13px; font-weight: 500; padding: 7px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s, color 0.15s; }
-    .btn svg { fill: currentColor; opacity: 0.6; }
+    .btn svg { fill: none; opacity: 0.8; }
     .btn:hover { background: #e5e7eb; color: #111827; } .btn:disabled { opacity: .5; cursor: default; }
     .btn.set { background: #fff; border: 1px solid #d1d5db; color: #111827; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-radius: 6px; } .btn.set:hover { background: #f9fafb; border-color: #d1d5db; }
     .btn.pri { background: #111827; border-color: #111827; color: #fff; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); border-radius: 6px; } .btn.pri:hover { background: #374151; border-color: #374151; }
@@ -58,18 +58,21 @@ export const UI_CSS = `
     .rule:hover { background: #f3f4f6; }
     .rule code { flex: 1; font: 11px ${MONO}; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; text-align: left; background: transparent; }
     .card { position: fixed; right: 24px; bottom: 24px; width: 360px; background: #fff; color: #111827; font: 13px/1.45 ${UI_FONT}; direction: ltr;
-            border-radius: 16px; padding: 20px 20px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.06); z-index: ${Z}; }
-    .card .t { display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 12px; font-size: 14px; } .card .t small { display: block; font-weight: 400; color: #9ca3af; font-size: 11px; margin-top: 4px; }
-    .card .r { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
-    .card .r.end { border-bottom: 1px solid #f3f4f6; padding-bottom: 12px; margin-bottom: 14px; }
-    .card .r .kbd { min-width: 58px; padding: 4px 6px; font-size: 11px; cursor: default; }
-    .card label { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; padding: 6px 0; font-size: 13px; cursor: pointer; }
-    .card .b { display: flex; justify-content: flex-end; gap: 8px; margin: 16px 0 0; }
-    .card .b.row { display: flex; align-items: center; justify-content: space-between; }
-    .card .row { border-top: 1px solid #f3f4f6; margin: 0 -16px; padding: 12px 16px 0; display: flex; align-items: center; justify-content: space-between; }
+            border-radius: 16px; padding: 0; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.06); z-index: ${Z}; }
+    .card .t { display: flex; align-items: center; gap: 10px; font-weight: 600; padding: 20px 20px 14px; font-size: 14px; }
+    .card .t small { display: block; font-weight: 400; color: #9ca3af; font-size: 11px; margin-top: 1px; }
+    .card-list { border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; }
+    .card-row + .card-row { border-top: 1px solid #f3f4f6; }
+    .card-row b { display: block; font-weight: 600; }
+    .card-row small { display: block; color: #9ca3af; font-size: 11px; line-height: 1.4; margin-top: 2px; }
+    .card-row .kbd { min-width: 64px; cursor: default; background: #f3f4f6; border-color: transparent; }
+    .card .auto-row { display: flex; align-items: center; gap: 10px; padding: 16px 20px 0; margin: 0; font-size: 13px; cursor: pointer; }
+    .card-actions { display: flex; align-items: center; gap: 8px; padding: 10px 20px 20px; }
+    .card-actions .btn { flex: 0 0 auto; }
     @media (prefers-color-scheme: dark) {
       .panel, .card { background: rgba(22, 22, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #ffffff; box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,0.1); }
-      .sample, .ftr, .x, .row small, .muted, .tab, .hdr .t small, .card .t small { color: #888888; }
+      .sample, .ftr, .x, .row small, .muted, .tab, .hdr .t small, .card .t small, .card-row small { color: #888888; }
       .x { color: #888888; } .x:hover { background: rgba(255,255,255,0.06); color: #ffffff; }
       .tabs { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 3.5px; box-shadow: inset 0 1px 2px rgba(0,0,0,.2); }
       .tab:hover:not(.on) { color: #cccccc; }
@@ -81,13 +84,13 @@ export const UI_CSS = `
       .name { color: #ffffff; }
       .sample { color: #888888; }
       .ftr, .row + .row, .q-wrap + .row { border-top: 1px solid rgba(255,255,255,0.06); }
-      .card .row { border-color: rgba(255,255,255,0.06); }
-      .card .r.end { border-color: rgba(255,255,255,0.06); }
+      .card-list, .card-row + .card-row { border-color: rgba(255,255,255,0.06); }
       .btn { background: rgba(255,255,255,0.06); border: 1px solid transparent; color: #e5e7eb; box-shadow: none; font-weight: 500; border-radius: 6px; } .btn:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
       .btn.set { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #fff; box-shadow: none; border-radius: 6px; } .btn.set:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.25); }
       .kbd { background: rgba(255,255,255,0.06); border-color: transparent; color: #a0a0a0; box-shadow: none; border-radius: 6px; } .kbd:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
+      .card-row .kbd { background: rgba(255,255,255,0.06); }
       .btn.pri { background: #ffffff; border-color: #ffffff; color: #111827; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.15); border-radius: 6px; } .btn.pri:hover { background: #f3f4f6; border-color: #f3f4f6; }
-      .btn svg { fill: currentColor; opacity: 1; }
+      .btn svg { fill: none; opacity: 1; }
       .kbd.rec { background: #e5e5e5; color: #111; border-color: #e5e5e5; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 8px; border-radius: 6px; } .kbd.fixed { color: #888; background: transparent; border-color: #2a2a2a; box-shadow: none; }
       .hint { color: #ffffff; } .sw i { background: rgba(0,0,0,0.2); border: 1px solid #444; } .sw i::after { background: #888888; box-shadow: none; top: 1px; left: 1.5px; width: 15px; height: 15px; } .sw input:checked + i { background: #ededed; border-color: #ededed; } .sw input:checked + i::after { background: #111; transform: translateX(14px); }
       .rule code { color: #888888; background: transparent; }

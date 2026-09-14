@@ -17,12 +17,14 @@ export function onboardMarkup(): string {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <div>RTL Anywhere is ready<small>Any text, any site, one shortcut.</small></div>
         </div>
-        <div class="r"><span class="kbd">${esc(formatCombo(shortcuts.toggle))}</span><span>Toggle RTL on the selection or the element under the cursor</span></div>
-        <div class="r"><span class="kbd">${esc(formatCombo(shortcuts.pick))}</span><span>Pick mode — click elements; ⇧click remembers them for the site</span></div>
-        <div class="r end"><span class="kbd">${esc(formatCombo(shortcuts.undo))}</span><span>Undo everything on the page</span></div>
+        <div class="card-list">
+          <div class="card-row"><div><b>Toggle RTL</b><small>Selection or element under the cursor</small></div><span class="kbd">${esc(formatCombo(shortcuts.toggle))}</span></div>
+          <div class="card-row"><div><b>Pick mode</b><small>Click elements; ⇧click remembers them for the site</small></div><span class="kbd">${esc(formatCombo(shortcuts.pick))}</span></div>
+          <div class="card-row"><div><b>Undo all</b><small>Revert every change on the page</small></div><span class="kbd">${esc(formatCombo(shortcuts.undo))}</span></div>
+        </div>
         <label class="auto-row">
-          <span>Enable conservative RTL auto-detect</span>
           <span class="sw"><input class="auto" type="checkbox"${autoChecked}><i></i></span>
+          <span>Enable conservative RTL auto-detect</span>
         </label>
         <div class="card-actions">
           <button class="btn set">${SETTINGS_ICON}Settings</button>
