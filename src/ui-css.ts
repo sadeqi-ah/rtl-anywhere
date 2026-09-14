@@ -44,11 +44,11 @@ export const UI_CSS = `
     .btn.pri { background: #111827; border-color: #111827; color: #fff; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); border-radius: 6px; } .btn.pri:hover { background: #374151; border-color: #374151; }
     .ftr .btn { border-radius: 9999px; padding: 7px 14px; }
     .kbd { min-width: 64px; text-align: center; border: 1px solid #e5e7eb; background: transparent; color: #111827; font: 500 12px ${UI_FONT}; letter-spacing: .04em;
-           padding: 4px 6px; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
+           padding: 4px 8px; border-radius: 9999px; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
     .kbd:hover { border-color: #d1d5db; background: #f9fafb; }
-    .kbd.rec { border-color: #111827; background: #111827; color: #fff; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 8px; border-radius: 6px; }
+    .kbd.rec { border-color: #111827; background: #111827; color: #fff; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 10px; border-radius: 9999px; }
     .kbd.fixed { cursor: default; color: #9ca3af; }
-    .hint { min-height: 16px; padding: 4px 14px 0; font-size: 11px; color: #111827; }
+    .hint { min-height: 0; padding: 0; font-size: 0; color: transparent; }
 
     .sw { position: relative; width: 34px; height: 20px; flex: none; border-radius: 10px; overflow: hidden; }
     .sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
@@ -92,14 +92,14 @@ export const UI_CSS = `
       .btn { background: rgba(255,255,255,0.06); border: 1px solid transparent; color: #e5e7eb; box-shadow: none; font-weight: 500; border-radius: 6px; } .btn:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
       .btn.set { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #fff; box-shadow: none; border-radius: 6px; } .btn.set:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.25); }
       .ftr .btn, .ftr .btn.set { border-radius: 9999px; }
-      .kbd { background: rgba(255,255,255,0.06); border-color: transparent; color: #a0a0a0; box-shadow: none; border-radius: 6px; } .kbd:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
+      .kbd { background: rgba(255,255,255,0.06); border-color: transparent; color: #a0a0a0; box-shadow: none; border-radius: 9999px; } .kbd:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
       .card-row .kbd { background: rgba(255,255,255,0.06); }
       .btn.pri { background: #ffffff; border-color: #ffffff; color: #111827; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.15); border-radius: 6px; } .btn.pri:hover { background: #f3f4f6; border-color: #f3f4f6; }
       .card-actions .btn, .card-actions .btn.set, .card-actions .btn.pri { border-radius: 9999px; }
       .card-actions .ok { background: rgba(255,255,255,0.06); border-color: transparent; color: #e5e7eb; box-shadow: none; }
       .card-actions .ok:hover { background: rgba(255,255,255,0.1); color: #ffffff; }
       .btn svg { fill: none; opacity: 1; }
-      .kbd.rec { background: #e5e5e5; color: #111; border-color: #e5e5e5; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 8px; border-radius: 6px; } .kbd.fixed { color: #888; background: transparent; border-color: #2a2a2a; box-shadow: none; }
-      .hint { color: #ffffff; } .sw i { background: rgba(0,0,0,0.2); border: 1px solid #444; } .sw i::after { background: #888888; box-shadow: none; top: 1px; left: 1.5px; width: 15px; height: 15px; } .sw input:checked + i { background: #ededed; border-color: #ededed; } .sw input:checked + i::after { background: #111; transform: translateX(14px); }
+      .kbd.rec { background: #e5e5e5; color: #111; border-color: #e5e5e5; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 10px; border-radius: 9999px; } .kbd.fixed { color: #888; background: transparent; border-color: #2a2a2a; }
+      .hint { min-height: 0; padding: 0; font-size: 0; color: transparent; } .sw i { background: rgba(0,0,0,0.2); border: 1px solid #444; } .sw i::after { background: #888888; box-shadow: none; top: 1px; left: 1.5px; width: 15px; height: 15px; } .sw input:checked + i { background: #ededed; border-color: #ededed; } .sw input:checked + i::after { background: #111; transform: translateX(14px); }
       .rule code { color: #888888; background: transparent; }
     }`;

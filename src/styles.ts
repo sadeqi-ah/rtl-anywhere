@@ -4,7 +4,7 @@ import { addStyle } from "./gm.ts";
 
 export function initStyles(): void {
   addStyle(`
-    .${RTL_CLASS} { direction: rtl !important; text-align: right !important; unicode-bidi: isolate !important; }
+    .${RTL_CLASS} { direction: rtl !important; text-align: right !important; unicode-bidi: plaintext !important; }
     /* Code and math inside an RTL block always stay LTR */
     .${RTL_CLASS} :is(${PROTECTED}), .${RTL_CLASS} :is(${PROTECTED}) * {
       direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important;
