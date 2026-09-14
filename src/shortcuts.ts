@@ -63,7 +63,7 @@ export function startRecord(
   recording = { id, btn, hint, done };
   btn.classList.add("rec");
   btn.textContent = "Press keys…";
-  hint.textContent = "Press the new shortcut. Esc cancels.";
+  hint.textContent = "";
   window.addEventListener("keydown", onRecordKey, true);
   window.addEventListener("keyup", onRecordKeyUp, true);
 }
