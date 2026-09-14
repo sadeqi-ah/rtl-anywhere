@@ -7,8 +7,7 @@ RTL Anywhere is intentionally local-only. Use this checklist when changing permi
 - Do not add analytics, telemetry, remote config, or tracking.
 - Do not add `fetch`, `XMLHttpRequest`, `GM_xmlhttpRequest`, WebSocket, or beacon calls.
 - Do not store page text, selected text, page URLs, or browsing history.
-- Keep userscript storage limited to settings: font, cached font names, shortcuts, auto-detect flags, onboarding state, and remembered selectors.
-- Keep `unsafeWindow` usage limited to calling `queryLocalFonts()` on the real page window.
+- Keep userscript storage limited to settings: shortcuts, auto-detect flags, onboarding state, and remembered selectors.
 - Keep broad `@match *://*/*` justified by the product behavior: user-triggered RTL controls on any page.
 
 ## Review checklist

@@ -2,7 +2,7 @@
 // @name         RTL Anywhere
 // @namespace    rtl-anywhere
 // @version      {{version}}
-// @description  Any text, any site, one shortcut. Alt+R toggles RTL on the selection or hovered element, Alt+Shift+R opens pick mode, Alt+Shift+Z undoes everything. Auto-detect, per-site memory, custom font & shortcuts.
+// @description  Any text, any site, one shortcut. Alt+R toggles RTL on the selection or hovered element, Alt+Shift+R opens pick mode, Alt+Shift+Z undoes everything. Auto-detect, per-site memory & shortcuts.
 // @match        *://*/*
 // @grant        GM_addStyle
 // @grant        GM_getValue

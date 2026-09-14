@@ -83,10 +83,6 @@
         window.dispatchEvent(
           new KeyboardEvent("keydown", { code, bubbles: true, ...mods }),
         );
-      function input(el, value) {
-        el.value = value;
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-      }
       function selectText(node, start, end) {
         const range = document.createRange();
         range.setStart(node, start);
@@ -122,6 +118,15 @@
           hasShortcut(onboardText, "Alt+R", "⌥R") &&
             hasShortcut(onboardText, "Alt+Shift+R", "⌥⇧R") &&
             hasShortcut(onboardText, "Alt+Shift+Z", "⌥⇧Z"),
+        );
+        check(
+          "onboarding: auto-detect uses switch control",
+          !!onboardCard?.querySelector(".auto-row .sw .auto"),
+        );
+        check(
+          "onboarding: settings and continue are side by side",
+          getComputedStyle(onboardCard.querySelector(".card-actions")).display ===
+            "flex",
         );
         onboardCard?.querySelector(".ok")?.click();
         check(
@@ -262,24 +267,9 @@
             : [];
           check("settings panel rendered in a shadow root", !!panel);
           check(
-            "panel has Font / Shortcuts / Auto / Sites tabs",
+            "panel has Shortcuts / Auto / Sites tabs",
             JSON.stringify(tabs) ===
-              JSON.stringify(["Font", "Shortcuts", "Auto", "Sites"]),
-          );
-
-          const fontInput = panel.querySelector(".q");
-          input(fontInput, "Georgia");
-          panel.querySelector(".item")?.click();
-          check(
-            "font settings: manual font persists",
-            store["rtl-font"] === "Georgia" &&
-              panel.querySelector(".item.on")?.dataset.font === "Georgia",
-          );
-          check(
-            "font settings: typography style injected",
-            [...document.querySelectorAll("style")].some((style) =>
-              style.textContent.includes('font-family: "Georgia"'),
-            ),
+              JSON.stringify(["Shortcuts", "Auto", "Sites"]),
           );
 
           const autoTab = panel.querySelector('[data-tab="auto"]');
