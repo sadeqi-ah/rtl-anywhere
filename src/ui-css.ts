@@ -67,9 +67,9 @@ export const UI_CSS = `
     .card-row b { display: block; font-weight: 600; }
     .card-row small { display: block; color: #9ca3af; font-size: 11px; line-height: 1.4; margin-top: 2px; }
     .card-row .kbd { min-width: 64px; cursor: default; background: #f3f4f6; border-color: transparent; }
-    .card .auto-row { display: flex; align-items: center; gap: 10px; padding: 16px 20px 0; margin: 0; font-size: 13px; cursor: pointer; }
-    .card-actions { display: flex; align-items: center; gap: 8px; padding: 10px 20px 20px; }
-    .card-actions .btn { flex: 0 0 auto; }
+    .card .auto-row { display: flex; align-items: center; gap: 10px; padding: 14px 20px; margin: 0; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+    .card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 20px 20px; }
+    .card-actions .btn { flex: 0 0 auto; border-radius: 9999px; padding: 7px 14px; }
     @media (prefers-color-scheme: dark) {
       .panel, .card { background: rgba(22, 22, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #ffffff; box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,0.1); }
       .sample, .ftr, .x, .row small, .muted, .tab, .hdr .t small, .card .t small, .card-row small { color: #888888; }
@@ -85,11 +85,13 @@ export const UI_CSS = `
       .sample { color: #888888; }
       .ftr, .row + .row, .q-wrap + .row { border-top: 1px solid rgba(255,255,255,0.06); }
       .card-list, .card-row + .card-row { border-color: rgba(255,255,255,0.06); }
+      .card .auto-row { border-bottom-color: rgba(255,255,255,0.06); }
       .btn { background: rgba(255,255,255,0.06); border: 1px solid transparent; color: #e5e7eb; box-shadow: none; font-weight: 500; border-radius: 6px; } .btn:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
       .btn.set { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #fff; box-shadow: none; border-radius: 6px; } .btn.set:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.25); }
       .kbd { background: rgba(255,255,255,0.06); border-color: transparent; color: #a0a0a0; box-shadow: none; border-radius: 6px; } .kbd:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
       .card-row .kbd { background: rgba(255,255,255,0.06); }
       .btn.pri { background: #ffffff; border-color: #ffffff; color: #111827; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.15); border-radius: 6px; } .btn.pri:hover { background: #f3f4f6; border-color: #f3f4f6; }
+      .card-actions .btn, .card-actions .btn.set, .card-actions .btn.pri { border-radius: 9999px; }
       .btn svg { fill: none; opacity: 1; }
       .kbd.rec { background: #e5e5e5; color: #111; border-color: #e5e5e5; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 8px; border-radius: 6px; } .kbd.fixed { color: #888; background: transparent; border-color: #2a2a2a; box-shadow: none; }
       .hint { color: #ffffff; } .sw i { background: rgba(0,0,0,0.2); border: 1px solid #444; } .sw i::after { background: #888888; box-shadow: none; top: 1px; left: 1.5px; width: 15px; height: 15px; } .sw input:checked + i { background: #ededed; border-color: #ededed; } .sw input:checked + i::after { background: #111; transform: translateX(14px); }
