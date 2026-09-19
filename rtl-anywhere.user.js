@@ -2,7 +2,7 @@
 // @name         RTL Anywhere
 // @namespace    rtl-anywhere
 // @version      1.0.0
-// @description  Any text, any site, one shortcut. Alt+R toggles RTL on the selection or hovered element, Alt+Shift+R opens pick mode, Alt+Shift+Z undoes everything. Auto-detect, per-site memory, custom font & shortcuts.
+// @description  Any text, any site, one shortcut. Alt+R toggles RTL on the selection or hovered element, Alt+Shift+R opens pick mode, Alt+Shift+Z undoes everything. Auto-detect, per-site memory & shortcuts.
 // @match        *://*/*
 // @grant        GM_addStyle
 // @grant        GM_getValue
@@ -22,13 +22,12 @@
 (() => {
   // src/constants.ts
   var RTL_CLASS = "tm-rtl";
+  var RTL_DIR_CLASS = "tm-rtl-dir";
   var WRAP_ATTR = "data-tm-rtl-wrap";
   var PREV_DIR = "data-tm-rtl-dir";
   var SRC_ATTR = "data-tm-rtl-src";
   var SKIP_ATTR = "data-tm-rtl-skip";
   var K = {
-    font: "rtl-font",
-    fonts: "system-fonts",
     sc: "shortcuts",
     auto: "auto-detect",
     autoSites: "auto-detect-sites",
@@ -60,25 +59,6 @@
     '[class*="code-block"]',
     '[class*="codeblock"]',
     '[class*="sourceCode"]'
-  ].join(",");
-  var FONT_SAFE = [
-    "svg",
-    "i",
-    ".fa",
-    ".fas",
-    ".far",
-    ".fab",
-    ".fal",
-    ".fad",
-    '[class^="fa-"]',
-    '[class*=" fa-"]',
-    ".material-icons",
-    ".material-symbols-outlined",
-    ".material-symbols-rounded",
-    '[class*="icon"]',
-    '[class*="Icon"]',
-    '[class*="glyph"]',
-    '[class*="emoji"]'
   ].join(",");
   var FIELDS = "input, textarea, select, button";
   var EDITABLE = '[contenteditable]:not([contenteditable="false"])';
@@ -134,7 +114,8 @@
   // src/styles.ts
   function initStyles() {
     addStyle(`
-    .${RTL_CLASS} { direction: rtl !important; text-align: right !important; unicode-bidi: isolate !important; }
+    .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
+    .${RTL_DIR_CLASS} { direction: rtl !important; }
     /* Code and math inside an RTL block always stay LTR */
     .${RTL_CLASS} :is(${PROTECTED}), .${RTL_CLASS} :is(${PROTECTED}) * {
       direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important;
@@ -144,23 +125,8 @@
     @property --beam-angle { syntax: "<angle>"; initial-value: 0deg; inherits: true; }
   `);
   }
-  var typoStyle = null;
-  function applyTypography() {
-    const font = getValue(K.font, "");
-    if (typoStyle) {
-      typoStyle.remove();
-      typoStyle = null;
-    }
-    if (!font) return;
-    const decl = `font-family: "${font.replace(/"/g, '\\"')}" !important`;
-    const skip = `:not(:is(${PROTECTED})):not(:is(${PROTECTED}) *):not(:is(${FONT_SAFE}))`;
-    typoStyle = addStyle(
-      `.${RTL_CLASS}${skip}, .${RTL_CLASS} *${skip} { ${decl} }`
-    );
-  }
 
   // src/env.ts
-  var PAGE = typeof unsafeWindow !== "undefined" ? unsafeWindow : globalThis;
   var IS_MAC = /Mac|iPhone|iPad/.test(
     globalThis.navigator?.platform ?? ""
   );
@@ -269,7 +235,7 @@
     recording = { id, btn, hint, done };
     btn.classList.add("rec");
     btn.textContent = "Press keys…";
-    hint.textContent = "Press the new shortcut. Esc cancels.";
+    hint.textContent = "";
     window.addEventListener("keydown", onRecordKey, true);
     window.addEventListener("keyup", onRecordKeyUp, true);
   }
@@ -574,11 +540,16 @@
   }
 
   // src/core.ts
+  var FIRST_STRONG_RTL = /^[^A-Za-z\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]*[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
   function applyRTL(el, src = "manual", quiet = false) {
     if (!el.hasAttribute(PREV_DIR))
       el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-    el.setAttribute("dir", "rtl");
+    el.removeAttribute("dir");
     el.classList.add(RTL_CLASS);
+    el.classList.toggle(
+      RTL_DIR_CLASS,
+      FIRST_STRONG_RTL.test(el.textContent ?? "")
+    );
     el.setAttribute(SRC_ATTR, src);
     el.removeAttribute(SKIP_ATTR);
     touched.add(el);
@@ -600,7 +571,7 @@
       if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
       return;
     }
-    el.classList.remove(RTL_CLASS);
+    el.classList.remove(RTL_CLASS, RTL_DIR_CLASS);
     const prev = el.getAttribute(PREV_DIR);
     if (prev) el.setAttribute("dir", prev);
     else el.removeAttribute("dir");
@@ -1055,16 +1026,17 @@
     .ftr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; font-size: 11px; color: #9ca3af; }
     .msg { flex: 1; line-height: 1.4; }
     .btn { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; background: #f3f4f6; color: #111827; font: inherit; font-size: 13px; font-weight: 500; padding: 7px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s, color 0.15s; }
-    .btn svg { fill: currentColor; opacity: 0.6; }
+    .btn svg { fill: none; opacity: 0.8; }
     .btn:hover { background: #e5e7eb; color: #111827; } .btn:disabled { opacity: .5; cursor: default; }
     .btn.set { background: #fff; border: 1px solid #d1d5db; color: #111827; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-radius: 6px; } .btn.set:hover { background: #f9fafb; border-color: #d1d5db; }
     .btn.pri { background: #111827; border-color: #111827; color: #fff; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); border-radius: 6px; } .btn.pri:hover { background: #374151; border-color: #374151; }
+    .ftr .btn { border-radius: 9999px; padding: 7px 14px; }
     .kbd { min-width: 64px; text-align: center; border: 1px solid #e5e7eb; background: transparent; color: #111827; font: 500 12px ${UI_FONT}; letter-spacing: .04em;
-           padding: 4px 6px; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
+           padding: 4px 8px; border-radius: 9999px; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
     .kbd:hover { border-color: #d1d5db; background: #f9fafb; }
-    .kbd.rec { border-color: #111827; background: #111827; color: #fff; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 8px; border-radius: 6px; }
+    .kbd.rec { border-color: #111827; background: #111827; color: #fff; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 10px; border-radius: 9999px; }
     .kbd.fixed { cursor: default; color: #9ca3af; }
-    .hint { min-height: 16px; padding: 4px 14px 0; font-size: 11px; color: #111827; }
+    .hint { min-height: 0; padding: 0; font-size: 0; color: transparent; }
 
     .sw { position: relative; width: 34px; height: 20px; flex: none; border-radius: 10px; overflow: hidden; }
     .sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
@@ -1075,18 +1047,23 @@
     .rule:hover { background: #f3f4f6; }
     .rule code { flex: 1; font: 11px ${MONO}; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; text-align: left; background: transparent; }
     .card { position: fixed; right: 24px; bottom: 24px; width: 360px; background: #fff; color: #111827; font: 13px/1.45 ${UI_FONT}; direction: ltr;
-            border-radius: 16px; padding: 20px 20px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.06); z-index: ${Z}; }
-    .card .t { display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 12px; font-size: 14px; } .card .t small { display: block; font-weight: 400; color: #9ca3af; font-size: 11px; margin-top: 4px; }
-    .card .r { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
-    .card .r.end { border-bottom: 1px solid #f3f4f6; padding-bottom: 12px; margin-bottom: 14px; }
-    .card .r .kbd { min-width: 58px; padding: 4px 6px; font-size: 11px; cursor: default; }
-    .card label { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; padding: 6px 0; font-size: 13px; cursor: pointer; }
-    .card .b { display: flex; justify-content: flex-end; gap: 8px; margin: 16px 0 0; }
-    .card .b.row { display: flex; align-items: center; justify-content: space-between; }
-    .card .row { border-top: 1px solid #f3f4f6; margin: 0 -16px; padding: 12px 16px 0; display: flex; align-items: center; justify-content: space-between; }
+            border-radius: 16px; padding: 0; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.06); z-index: ${Z}; }
+    .card .t { display: flex; align-items: center; gap: 10px; font-weight: 600; padding: 20px 20px 14px; font-size: 14px; }
+    .card .t small { display: block; font-weight: 400; color: #9ca3af; font-size: 11px; margin-top: 1px; }
+    .card-list { border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; }
+    .card-row + .card-row { border-top: 1px solid #f3f4f6; }
+    .card-row b { display: block; font-weight: 600; }
+    .card-row small { display: block; color: #9ca3af; font-size: 11px; line-height: 1.4; margin-top: 2px; }
+    .card-row .kbd { min-width: 64px; cursor: default; background: #f3f4f6; border-color: transparent; }
+    .card .auto-row { display: flex; align-items: center; gap: 10px; padding: 13px 20px; margin: 0; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+    .card-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
+    .card-actions .btn { flex: 0 0 auto; border-radius: 9999px; padding: 7px 14px; }
+    .card-actions .ok { background: #f3f4f6; border-color: transparent; color: #111827; box-shadow: none; }
+    .card-actions .ok:hover { background: #e5e7eb; border-color: transparent; color: #111827; }
     @media (prefers-color-scheme: dark) {
       .panel, .card { background: rgba(22, 22, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #ffffff; box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,0.1); }
-      .sample, .ftr, .x, .row small, .muted, .tab, .hdr .t small, .card .t small { color: #888888; }
+      .sample, .ftr, .x, .row small, .muted, .tab, .hdr .t small, .card .t small, .card-row small { color: #888888; }
       .x { color: #888888; } .x:hover { background: rgba(255,255,255,0.06); color: #ffffff; }
       .tabs { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 3.5px; box-shadow: inset 0 1px 2px rgba(0,0,0,.2); }
       .tab:hover:not(.on) { color: #cccccc; }
@@ -1098,15 +1075,20 @@
       .name { color: #ffffff; }
       .sample { color: #888888; }
       .ftr, .row + .row, .q-wrap + .row { border-top: 1px solid rgba(255,255,255,0.06); }
-      .card .row { border-color: rgba(255,255,255,0.06); }
-      .card .r.end { border-color: rgba(255,255,255,0.06); }
+      .card-list, .card-row + .card-row { border-color: rgba(255,255,255,0.06); }
+      .card .auto-row { border-bottom-color: rgba(255,255,255,0.06); }
       .btn { background: rgba(255,255,255,0.06); border: 1px solid transparent; color: #e5e7eb; box-shadow: none; font-weight: 500; border-radius: 6px; } .btn:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
       .btn.set { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #fff; box-shadow: none; border-radius: 6px; } .btn.set:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.25); }
-      .kbd { background: rgba(255,255,255,0.06); border-color: transparent; color: #a0a0a0; box-shadow: none; border-radius: 6px; } .kbd:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
+      .ftr .btn, .ftr .btn.set { border-radius: 9999px; }
+      .kbd { background: rgba(255,255,255,0.06); border-color: transparent; color: #a0a0a0; box-shadow: none; border-radius: 9999px; } .kbd:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #ffffff; }
+      .card-row .kbd { background: rgba(255,255,255,0.06); }
       .btn.pri { background: #ffffff; border-color: #ffffff; color: #111827; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.15); border-radius: 6px; } .btn.pri:hover { background: #f3f4f6; border-color: #f3f4f6; }
-      .btn svg { fill: currentColor; opacity: 1; }
-      .kbd.rec { background: #e5e5e5; color: #111; border-color: #e5e5e5; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 8px; border-radius: 6px; } .kbd.fixed { color: #888; background: transparent; border-color: #2a2a2a; box-shadow: none; }
-      .hint { color: #ffffff; } .sw i { background: rgba(0,0,0,0.2); border: 1px solid #444; } .sw i::after { background: #888888; box-shadow: none; top: 1px; left: 1.5px; width: 15px; height: 15px; } .sw input:checked + i { background: #ededed; border-color: #ededed; } .sw input:checked + i::after { background: #111; transform: translateX(14px); }
+      .card-actions .btn, .card-actions .btn.set, .card-actions .btn.pri { border-radius: 9999px; }
+      .card-actions .ok { background: rgba(255,255,255,0.06); border-color: transparent; color: #e5e7eb; box-shadow: none; }
+      .card-actions .ok:hover { background: rgba(255,255,255,0.1); color: #ffffff; }
+      .btn svg { fill: none; opacity: 1; }
+      .kbd.rec { background: #e5e5e5; color: #111; border-color: #e5e5e5; box-shadow: none; font-weight: 500; font-size: 11px; padding: 4px 10px; border-radius: 9999px; } .kbd.fixed { color: #888; background: transparent; border-color: #2a2a2a; }
+      .hint { min-height: 0; padding: 0; font-size: 0; color: transparent; } .sw i { background: rgba(0,0,0,0.2); border: 1px solid #444; } .sw i::after { background: #888888; box-shadow: none; top: 1px; left: 1.5px; width: 15px; height: 15px; } .sw input:checked + i { background: #ededed; border-color: #ededed; } .sw input:checked + i::after { background: #111; transform: translateX(14px); }
       .rule code { color: #888888; background: transparent; }
     }`;
 
@@ -1118,7 +1100,7 @@
         <div class="hdr">
           <div class="t" style="display:flex;align-items:center;gap:10px">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <div>RTL Anywhere<small>Configure behavior and appearance</small></div>
+            <div>RTL Anywhere<small>Configure behavior and shortcuts</small></div>
           </div>
           <button class="x" title="Close" aria-label="Close">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1127,19 +1109,9 @@
           </button>
         </div>
         <div class="tabs">
-          <button class="tab" data-tab="font">Font</button>
           <button class="tab" data-tab="keys">Shortcuts</button>
           <button class="tab" data-tab="auto">Auto</button>
           <button class="tab" data-tab="sites">Sites</button>
-        </div>
-
-        <div class="sec" data-sec="font">
-          <div class="q-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.29 14.71l5 5 1.42-1.42-5-5A8 8 0 0010 2zm0 14a6 6 0 116-6 6 6 0 01-6 6z"/></svg>
-            <input class="q" type="text" placeholder="Search, or type any font name…" spellcheck="false" autocomplete="off">
-          </div>
-          <div class="list"></div>
-          <div class="ftr"><span class="msg"></span><button class="btn load">Load system fonts</button></div>
         </div>
 
         <div class="sec" data-sec="keys">
@@ -1185,7 +1157,7 @@
     panelHost = null;
     document.removeEventListener("mousedown", onOutsideDown, true);
   }
-  function openPanel(tab = "font") {
+  function openPanel(tab = "keys") {
     closePanel();
     const host2 = document.createElement("div");
     panelHost = host2;
@@ -1203,90 +1175,10 @@
       drawHover(null);
       $$(".tab").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
       $$(".sec").forEach((s) => s.classList.toggle("on", s.dataset.sec === name));
-      if (name === "font") q.focus();
     }
     $$(".tab").forEach(
       (t) => t.addEventListener("click", () => showTab(t.dataset.tab))
     );
-    const list = $('[data-sec="font"] .list'), q = $(".q"), msg = $('[data-sec="font"] .msg'), loadBtn = $(".load");
-    let fonts = getValue(K.fonts, []);
-    let current = getValue(K.font, "");
-    const queryLocalFonts = PAGE.queryLocalFonts;
-    if (!queryLocalFonts) {
-      loadBtn.hidden = true;
-      msg.textContent = "This browser can’t list system fonts. Type a font name above.";
-    } else {
-      msg.textContent = fonts.length ? `${fonts.length} system fonts` : "Load the list once; it’s cached.";
-      if (fonts.length) loadBtn.textContent = "Refresh";
-    }
-    function item(name, label) {
-      const el = document.createElement("div");
-      el.className = "item" + (name === current ? " on" : "");
-      el.dataset.font = name;
-      const n = document.createElement("span");
-      n.className = "name";
-      n.textContent = label || name;
-      const s = document.createElement("span");
-      s.className = "sample";
-      if (name) {
-        s.textContent = "نمونهٔ متن ۱۲۳";
-        s.style.fontFamily = `"${name}"`;
-      }
-      el.append(n, s);
-      return el;
-    }
-    function render() {
-      const raw = q.value.trim(), term = raw.toLowerCase();
-      const frag = document.createDocumentFragment();
-      if (!term) frag.appendChild(item("", "Default — leave font untouched"));
-      const shown = fonts.filter((f) => f.toLowerCase().includes(term));
-      shown.forEach((f) => frag.appendChild(item(f)));
-      if (raw && !fonts.some((f) => f.toLowerCase() === term))
-        frag.appendChild(item(raw, `Use “${raw}”`));
-      if (!shown.length && !raw) {
-        const e = document.createElement("div");
-        e.className = "empty";
-        e.textContent = queryLocalFonts ? "No fonts loaded yet — click “Load system fonts” below, or type a name above." : "Type the exact name of an installed font above.";
-        frag.appendChild(e);
-      }
-      list.replaceChildren(frag);
-    }
-    list.addEventListener("click", (e) => {
-      const el = e.target instanceof Element ? e.target.closest(".item") : null;
-      if (!el) return;
-      current = el.dataset.font ?? "";
-      setValue(K.font, current);
-      applyTypography();
-      render();
-    });
-    q.addEventListener("input", render);
-    loadBtn.addEventListener("click", async () => {
-      if (!queryLocalFonts) return;
-      loadBtn.disabled = true;
-      msg.textContent = "Loading…";
-      try {
-        const data = await queryLocalFonts.call(PAGE);
-        fonts = [...new Set(Array.from(data, (f) => f.family))].sort(
-          (a, b) => a.localeCompare(b)
-        );
-        setValue(K.fonts, fonts);
-        msg.textContent = `${fonts.length} system fonts`;
-        loadBtn.textContent = "Refresh";
-        render();
-      } catch (err) {
-        const e = err instanceof Error ? err : null;
-        if (!isSecureContext)
-          msg.textContent = "Needs an HTTPS page — open the panel on any https:// site.";
-        else if (e?.name === "NotAllowedError")
-          msg.textContent = "Fonts permission is blocked for this site. Address bar icon → Site settings → Fonts → Allow, then retry.";
-        else if (e?.name === "SecurityError")
-          msg.textContent = "This page’s Permissions-Policy disables font access. Try another site.";
-        else
-          msg.textContent = `${e?.name || "Error"}: ${e?.message || "unavailable here"}`;
-      } finally {
-        loadBtn.disabled = false;
-      }
-    });
     const hint = $(".hint");
     const kbdBtns = $$(".kbd[data-sc]");
     const scOf = (b) => b.dataset.sc;
@@ -1374,13 +1266,12 @@
       renderSites();
     });
     renderSites();
-    render();
     showTab(tab);
   }
 
   // src/onboard-markup.ts
+  var SETTINGS_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" color="currentColor" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 12C15.5 13.933 13.933 15.5 12 15.5C10.067 15.5 8.5 13.933 8.5 12C8.5 10.067 10.067 8.5 12 8.5C13.933 8.5 15.5 10.067 15.5 12Z"></path><path d="M20.7906 9.15201C21.5969 10.5418 22 11.2366 22 12C22 12.7634 21.5969 13.4582 20.7906 14.848L18.8669 18.1638C18.0638 19.548 17.6623 20.2402 17.0019 20.6201C16.3416 21 15.5402 21 13.9373 21L10.0627 21C8.45982 21 7.6584 21 6.99807 20.6201C6.33774 20.2402 5.93619 19.548 5.13311 18.1638L3.20942 14.848C2.40314 13.4582 2 12.7634 2 12C2 11.2366 2.40314 10.5418 3.20942 9.152L5.13311 5.83621C5.93619 4.45196 6.33774 3.75984 6.99807 3.37992C7.6584 3 8.45982 3 10.0627 3L13.9373 3C15.5402 3 16.3416 3 17.0019 3.37992C17.6623 3.75984 18.0638 4.45197 18.8669 5.83622L20.7906 9.15201Z"></path></svg>`;
   function onboardMarkup() {
-    const autoChecked = getValue(K.auto, false) ? " checked" : "";
     return `
       <style>${UI_CSS}</style>
       <div class="card">
@@ -1388,13 +1279,18 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <div>RTL Anywhere is ready<small>Any text, any site, one shortcut.</small></div>
         </div>
-        <div class="r"><span class="kbd">${esc(formatCombo(shortcuts.toggle))}</span><span>Toggle RTL on the selection or the element under the cursor</span></div>
-        <div class="r"><span class="kbd">${esc(formatCombo(shortcuts.pick))}</span><span>Pick mode — click elements; ⇧click remembers them for the site</span></div>
-        <div class="r end"><span class="kbd">${esc(formatCombo(shortcuts.undo))}</span><span>Undo everything on the page</span></div>
-        <label><input class="auto" type="checkbox"${autoChecked}> Enable conservative RTL auto-detect</label>
-        <div class="row b">
-          <div style="flex: 1;"><b>Settings</b><small style="margin-top:2px;">Configure fonts, shortcuts and auto-detect mode.</small></div>
-          <div style="margin-top:0"><button class="btn set"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Settings</button><button class="btn pri ok">Continue</button></div>
+        <div class="card-list">
+          <div class="card-row"><div><b>Toggle RTL</b><small>Selection or element under the cursor</small></div><span class="kbd">${esc(formatCombo(shortcuts.toggle))}</span></div>
+          <div class="card-row"><div><b>Pick mode</b><small>Click elements; ⇧click remembers them for the site</small></div><span class="kbd">${esc(formatCombo(shortcuts.pick))}</span></div>
+          <div class="card-row"><div><b>Undo all</b><small>Revert every change on the page</small></div><span class="kbd">${esc(formatCombo(shortcuts.undo))}</span></div>
+        </div>
+        <label class="auto-row">
+          <span class="sw"><input class="auto" type="checkbox"><i></i></span>
+          <span>Enable conservative RTL auto-detect</span>
+        </label>
+        <div class="card-actions">
+          <button class="btn set">${SETTINGS_ICON}Settings</button>
+          <button class="btn ok">Continue</button>
         </div>
       </div>`;
   }
@@ -1428,7 +1324,6 @@
 
   // src/main.ts
   initStyles();
-  applyTypography();
   trackMouse();
   setFlushHandler((el) => {
     applySiteRules(el);

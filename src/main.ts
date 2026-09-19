@@ -1,7 +1,7 @@
 // Entry point: wires the modules together — menu commands, the global key handler,
 // and the initial scan. Everything else is a module under src/.
 import { onMenu } from "./gm.ts";
-import { initStyles, applyTypography } from "./styles.ts";
+import { initStyles } from "./styles.ts";
 import { matches } from "./keys.ts";
 import { shortcuts, isRecording } from "./shortcuts.ts";
 import { action, undoAll } from "./core.ts";
@@ -22,7 +22,6 @@ import { maybeOnboard, dismissOnboard } from "./onboard.ts";
 import { flags } from "./state.ts";
 
 initStyles();
-applyTypography();
 trackMouse();
 
 // New/changed content: re-apply site rules, then auto-detect.
