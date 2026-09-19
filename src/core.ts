@@ -1,7 +1,6 @@
 // Apply / revert RTL on an element or a text selection, and the top-level toggle action.
 import {
   RTL_CLASS,
-  RTL_DIR_CLASS,
   WRAP_ATTR,
   PREV_DIR,
   SRC_ATTR,
@@ -13,9 +12,6 @@ import { isProtected, smartTarget, textNodesInRange } from "./dom.ts";
 import { flash, hudSet } from "./overlay.ts";
 import { touched, flags } from "./state.ts";
 
-const FIRST_STRONG_RTL =
-  /^[^A-Za-z\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]*[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
-
 export function applyRTL(
   el: Element,
   src: RtlSource = "manual",
@@ -23,15 +19,11 @@ export function applyRTL(
 ): void {
   if (!el.hasAttribute(PREV_DIR))
     el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-  // Avoid writing dir="rtl"/"auto": on mixed text that starts with Latin, the
-  // dir attribute can reorder the leading word. Pure RTL-starting text still
-  // gets CSS direction so list markers and computed direction behave correctly.
+  // Alignment is enough for the feature. Forcing a bidi base direction—through
+  // either a dir attribute or CSS direction—reorders mixed text that begins
+  // with a Latin word, so leave the element's natural direction untouched.
   el.removeAttribute("dir");
   el.classList.add(RTL_CLASS);
-  el.classList.toggle(
-    RTL_DIR_CLASS,
-    FIRST_STRONG_RTL.test(el.textContent ?? ""),
-  );
   el.setAttribute(SRC_ATTR, src);
   el.removeAttribute(SKIP_ATTR);
   touched.add(el);
@@ -57,7 +49,7 @@ export function revert(el: Element, byUser = false, quiet = false): void {
     if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
     return;
   }
-  el.classList.remove(RTL_CLASS, RTL_DIR_CLASS);
+  el.classList.remove(RTL_CLASS);
   const prev = el.getAttribute(PREV_DIR);
   if (prev) el.setAttribute("dir", prev);
   else el.removeAttribute("dir");

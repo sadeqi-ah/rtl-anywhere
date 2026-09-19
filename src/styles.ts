@@ -1,12 +1,11 @@
 // Injected page CSS: the RTL rules themselves.
-import { RTL_CLASS, RTL_DIR_CLASS, PROTECTED } from "./constants.ts";
+import { RTL_CLASS, PROTECTED } from "./constants.ts";
 import { addStyle } from "./gm.ts";
 
 export function initStyles(): void {
   addStyle(`
-    .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
-    .${RTL_DIR_CLASS} { direction: rtl !important; }
-    /* Code and math inside an RTL block always stay LTR */
+    .${RTL_CLASS} { text-align: right !important; }
+    /* Code and math inside a right-aligned block always stay LTR */
     .${RTL_CLASS} :is(${PROTECTED}), .${RTL_CLASS} :is(${PROTECTED}) * {
       direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important;
     }
