@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RTL Anywhere list harness</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; padding: 32px; background: #08090c; color: #eef2ff; font: 14px/1.6 system-ui, sans-serif; }
+      main { max-width: 720px; margin: auto; }
+      .sample { padding: 16px 20px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: #191c24; }
+      li + li { margin-top: 10px; }
+    </style>
+    <script>
+      const store = { onboarded: true, "auto-detect": true, "auto-detect-sites": [], "site-rules": {} };
+      window.GM_getValue = (key, fallback) => key in store ? store[key] : fallback;
+      window.GM_setValue = (key, value) => { store[key] = value; };
+      window.GM_registerMenuCommand = () => {};
+      window.GM_addStyle = (css) => { const style = document.createElement("style"); style.textContent = css; document.head.appendChild(style); return style; };
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Mixed-direction list</h1>
+      <div class="sample">
+        <ul>
+          <li>English first — این آیتم با عبارت انگلیسی شروع می‌شود.</li>
+          <li>GitHub محل انتشار سورس و نسخه‌های جدید پروژه است.</li>
+          <li>این آیتم کاملاً فارسی است و باید به‌درستی راست‌چین شود.</li>
+          <li>این هم یک آیتم فارسی دیگر برای بررسی محل bullet است.</li>
+        </ul>
+      </div>
+    </main>
+    <script src="../rtl-anywhere.user.js"></script>
+  </body>
+</html>
