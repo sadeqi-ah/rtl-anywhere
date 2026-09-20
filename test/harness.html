@@ -1,337 +1,103 @@
 <!doctype html>
-<!--
-  Manual development harness for RTL Anywhere.
-
-  Run:
-    pnpm run dev:harness
-
-  Then open this file directly in a browser. It shims the Tampermonkey GM_* API,
-  loads ../rtl-anywhere.user.js, and gives every important UI state a local page
-  to develop against without reinstalling the userscript.
--->
+<!-- Manual development harness. Run `pnpm run dev:harness`, then open this file. -->
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RTL Anywhere harness</title>
     <style>
-      :root {
-        color-scheme: dark;
-        --bg: #08090c;
-        --panel: #12141a;
-        --panel-2: #191c24;
-        --border: rgba(255, 255, 255, 0.1);
-        --fg: #eef2ff;
-        --muted: #9ca3af;
-        --accent: #8b5cf6;
-      }
-
-      :root.light {
-        color-scheme: light;
-        --bg: #f8fafc;
-        --panel: #ffffff;
-        --panel-2: #f1f5f9;
-        --border: rgba(15, 23, 42, 0.12);
-        --fg: #0f172a;
-        --muted: #64748b;
-        --accent: #7c3aed;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        background:
-          radial-gradient(
-            circle at top left,
-            rgba(124, 58, 237, 0.22),
-            transparent 32rem
-          ),
-          var(--bg);
-        color: var(--fg);
-        font:
-          14px/1.5 Inter,
-          ui-sans-serif,
-          system-ui,
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          sans-serif;
-      }
-
-      header {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 16px 20px;
-        border-bottom: 1px solid var(--border);
-        background: color-mix(in srgb, var(--bg) 82%, transparent);
-        backdrop-filter: blur(18px);
-      }
-
-      h1,
-      h2,
-      h3,
-      p {
-        margin-top: 0;
-      }
-
-      h1 {
-        margin-bottom: 2px;
-        font-size: 20px;
-      }
-
-      h2 {
-        margin-bottom: 12px;
-        font-size: 16px;
-      }
-
-      .muted {
-        color: var(--muted);
-      }
-
-      .toolbar,
-      .buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      button {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 8px 11px;
-        background: var(--panel-2);
-        color: var(--fg);
-        font: inherit;
-        cursor: pointer;
-      }
-
-      button:hover {
-        border-color: color-mix(in srgb, var(--accent), var(--border));
-      }
-
-      main {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 16px;
-        padding: 20px;
-      }
-
-      section {
-        min-height: 220px;
-        padding: 16px;
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        background: color-mix(in srgb, var(--panel) 94%, transparent);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-      }
-
-      .sample {
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: var(--panel-2);
-      }
-
-      .stack {
-        display: grid;
-        gap: 10px;
-      }
-
-      code,
-      pre {
-        direction: ltr;
-        font-family:
-          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      }
-
-      pre {
-        overflow: auto;
-      }
-
-      .overflow-box {
-        height: 130px;
-        overflow: hidden;
-        border: 1px dashed var(--border);
-        border-radius: 14px;
-        padding: 14px;
-      }
-
-      .deep-target {
-        margin: 28px 0 0 180px;
-        width: 280px;
-      }
-
-      .editor {
-        min-height: 88px;
-        outline: none;
-      }
-
-      #log {
-        white-space: pre-wrap;
-        max-height: 180px;
-        overflow: auto;
-      }
+      :root { color-scheme: dark; --bg:#08090c; --panel:#12141a; --panel-2:#191c24; --border:rgba(255,255,255,.1); --fg:#eef2ff; --muted:#9ca3af; }
+      :root.light { color-scheme:light; --bg:#f8fafc; --panel:#fff; --panel-2:#f1f5f9; --border:rgba(15,23,42,.12); --fg:#0f172a; --muted:#64748b; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+      header { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; border-bottom:1px solid var(--border); background:color-mix(in srgb,var(--bg) 82%,transparent); backdrop-filter:blur(18px); }
+      h1,h2,p { margin-top:0; } h1 { margin-bottom:2px; font-size:20px; } h2 { margin-bottom:12px; font-size:16px; }
+      .muted { color:var(--muted); }
+      .toolbar,.buttons { display:flex; flex-wrap:wrap; gap:8px; }
+      button { border:1px solid var(--border); border-radius:10px; padding:8px 11px; background:var(--panel-2); color:var(--fg); font:inherit; cursor:pointer; }
+      main { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; padding:20px; }
+      section { min-height:220px; padding:16px; border:1px solid var(--border); border-radius:18px; background:var(--panel); }
+      .sample { padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--panel-2); }
+      .stack { display:grid; gap:10px; }
+      code,pre { direction:ltr; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+      pre { overflow:auto; }
+      .overflow-box { height:130px; overflow:hidden; border:1px dashed var(--border); border-radius:14px; padding:14px; }
+      .deep-target { margin:28px 0 0 180px; width:280px; }
+      .editor { min-height:88px; outline:none; }
+      #log { white-space:pre-wrap; max-height:180px; overflow:auto; }
+      li + li { margin-top:8px; }
     </style>
     <script>
-      const store = {
-        onboarded: false,
-        "auto-detect": true,
-        "auto-sites": [location.hostname || ""],
-        sites: {
-          [location.hostname || ""]: ["#remembered-target"],
-        },
-      };
-
-      window.GM_getValue = (key, fallback) =>
-        key in store ? store[key] : fallback;
-      window.GM_setValue = (key, value) => {
-        store[key] = value;
-        window.__renderStore?.();
-      };
-      window.GM_registerMenuCommand = (label, fn) =>
-        ((window.__menu ??= {})[label] = fn);
-      window.GM_addStyle = (css) => {
-        const style = document.createElement("style");
-        style.textContent = css;
-        document.head.appendChild(style);
-        return style;
-      };
+      const store = { onboarded:false, "auto-detect":true, "auto-detect-sites":[], "site-rules":{ [location.hostname || ""]:["#remembered-target"] } };
+      window.GM_getValue = (key,fallback) => key in store ? store[key] : fallback;
+      window.GM_setValue = (key,value) => { store[key]=value; window.__renderStore?.(); };
+      window.GM_registerMenuCommand = (label,fn) => ((window.__menu ??= {})[label]=fn);
+      window.GM_addStyle = css => { const style=document.createElement("style"); style.textContent=css; document.head.appendChild(style); return style; };
     </script>
   </head>
   <body>
     <header>
-      <div>
-        <h1>RTL Anywhere harness</h1>
-        <div class="muted">
-          Develop the userscript UI without installing it.
-        </div>
-      </div>
+      <div><h1>RTL Anywhere harness</h1><div class="muted">Develop the userscript UI without installing it.</div></div>
       <div class="toolbar">
-        <button onclick="document.documentElement.classList.toggle('light')">
-          Toggle theme
-        </button>
+        <button onclick="document.documentElement.classList.toggle('light')">Toggle theme</button>
         <button onclick="window.__menu?.['Settings…']?.()">Settings</button>
         <button onclick="window.__menu?.['Pick mode']?.()">Pick mode</button>
-        <button onclick="window.__menu?.['Undo all on this page']?.()">
-          Undo all
-        </button>
+        <button onclick="window.__menu?.['Undo all on this page']?.()">Undo all</button>
         <button onclick="window.__showOnboarding?.()">Show onboarding</button>
       </div>
     </header>
-
     <main>
       <section>
         <h2>Auto-detect content</h2>
         <div class="stack">
-          <p class="sample">
-            این یک پاراگراف فارسی است و باید با auto-detect راست‌به‌چپ شود.
-          </p>
-          <p class="sample">
-            مرحبا بالعالم. هذا نص عربي طويل بما يكفي للاختبار.
-          </p>
+          <p class="sample">این یک پاراگراف فارسی است و باید با auto-detect راست‌چین شود.</p>
+          <p class="sample">مرحبا بالعالم. هذا نص عربي طويل بما يكفي للاختبار.</p>
           <p class="sample">שלום עולם. זה טקסט בעברית לבדיקה.</p>
-          <p class="sample">
-            This English paragraph should stay left-to-right.
-          </p>
-          <p class="sample">
-            سلام دنیا <code>const direction = "ltr";</code> و ادامه متن فارسی.
-          </p>
+          <p class="sample">This English paragraph should stay left-to-right.</p>
+          <p class="sample">English first — این پاراگراف با انگلیسی شروع می‌شود و ترتیبش نباید عوض شود.</p>
+          <p class="sample">سلام دنیا <code>const direction = "ltr";</code> و ادامه متن فارسی.</p>
+          <div class="sample">
+            <strong>Mixed-direction list</strong>
+            <ul>
+              <li>English first — این آیتم با عبارت انگلیسی شروع می‌شود.</li>
+              <li>GitHub محل انتشار سورس و نسخه‌های جدید پروژه است.</li>
+              <li>این آیتم کاملاً فارسی است و باید به‌درستی راست‌چین شود.</li>
+              <li>این هم یک آیتم فارسی دیگر برای بررسی محل bullet است.</li>
+            </ul>
+          </div>
         </div>
       </section>
-
       <section>
         <h2>Protected content</h2>
-        <pre class="sample">
-function stayLtr() {
+        <pre class="sample">function stayLtr() {
   return "کد نباید RTL شود";
-}</pre
-        >
-        <p class="sample">
-          Inline math/code should stay safe: <code>npm run build</code>
-        </p>
+}</pre>
+        <p class="sample">Inline math/code should stay safe: <code>npm run build</code></p>
       </section>
-
       <section>
         <h2>Pick-mode targets</h2>
         <div class="stack">
-          <div id="remembered-target" class="sample">
-            Remembered selector target: #remembered-target
-          </div>
-          <div class="sample parent-target">
-            Parent target
-            <div class="sample child-target">
-              Child target — use ↑ / ↓ in pick mode.
-            </div>
-          </div>
+          <div id="remembered-target" class="sample">Remembered selector target: #remembered-target</div>
+          <div class="sample parent-target">Parent target<div class="sample child-target">Child target — use ↑ / ↓ in pick mode.</div></div>
         </div>
       </section>
-
       <section>
         <h2>Overflow clipping check</h2>
-        <div class="overflow-box">
-          <div class="sample deep-target">
-            Overlay should not be clipped by this overflow-hidden container.
-          </div>
-        </div>
+        <div class="overflow-box"><div class="sample deep-target">Overlay should not be clipped by this overflow-hidden container.</div></div>
       </section>
-
       <section>
         <h2>Editable fallback</h2>
-        <div class="sample editor" contenteditable="true">
-          متن فارسی داخل یک editor. انتخاب متن در editor باید block را toggle
-          کند نه اینکه span تزریق کند.
-        </div>
+        <div class="sample editor" contenteditable="true">متن فارسی داخل یک editor. انتخاب متن در editor باید block را toggle کند نه اینکه span تزریق کند.</div>
       </section>
-
-      <section>
-        <h2>Font permission scenarios</h2>
-        <p class="muted">Use these before opening Settings → Font.</p>
-        <div class="buttons">
-          <button onclick="window.queryLocalFonts = undefined">No API</button>
-          <button
-            onclick="window.queryLocalFonts = async () => [{ family: 'Vazirmatn' }, { family: 'Arial' }]"
-          >
-            Mock success
-          </button>
-          <button
-            onclick="window.queryLocalFonts = async () => { const e = new Error('blocked'); e.name = 'NotAllowedError'; throw e; }"
-          >
-            Mock denied
-          </button>
-        </div>
-      </section>
-
       <section>
         <h2>Harness store</h2>
         <pre id="log" class="sample"></pre>
       </section>
     </main>
-
     <script src="../rtl-anywhere.user.js"></script>
     <script>
-      window.__renderStore = () => {
-        document.getElementById("log").textContent = JSON.stringify(
-          store,
-          null,
-          2,
-        );
-      };
-      window.__showOnboarding = () => {
-        store.onboarded = false;
-        window.__renderStore();
-        document.dispatchEvent(
-          new KeyboardEvent("keydown", { code: "Escape", bubbles: true }),
-        );
-        setTimeout(() => location.reload(), 0);
-      };
+      window.__renderStore = () => { document.getElementById("log").textContent=JSON.stringify(store,null,2); };
+      window.__showOnboarding = () => { store.onboarded=false; window.__renderStore(); document.dispatchEvent(new KeyboardEvent("keydown",{code:"Escape",bubbles:true})); setTimeout(()=>location.reload(),0); };
       window.__renderStore();
     </script>
   </body>
