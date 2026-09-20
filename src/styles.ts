@@ -7,8 +7,8 @@ export function initStyles(): void {
     /* Let each block derive its bidi base from its first strong character. */
     .${RTL_CLASS} { text-align: right !important; unicode-bidi: plaintext !important; }
 
-    /* Native list markers follow `direction`, so forcing them right would also
-       reorder English-first items. Draw the unordered marker independently. */
+    /* Native list markers follow the direction property, so forcing them right
+       would also reorder English-first items. Draw the marker independently. */
     ul.${RTL_CLASS}, ul:has(> li.${RTL_CLASS}) {
       padding-inline-start: 0 !important;
     }
