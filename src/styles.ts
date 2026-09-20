@@ -13,6 +13,7 @@ export function initStyles(): void {
       padding-inline-start: 0 !important;
     }
     ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} {
+      display: block !important;
       list-style: none !important;
       position: relative !important;
       padding-right: 1.25em !important;
