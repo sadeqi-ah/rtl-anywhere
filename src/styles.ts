@@ -4,11 +4,12 @@ import { addStyle } from "./gm.ts";
 
 export function initStyles(): void {
   addStyle(`
-    /* Let each block derive its bidi base from its first strong character. */
-    .${RTL_CLASS} { text-align: right !important; unicode-bidi: plaintext !important; }
+    .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
+    .tm-rtl-base-ltr { direction: ltr !important; }
+    .tm-rtl-base-rtl { direction: rtl !important; }
 
-    /* Native list markers follow the direction property, so forcing them right
-       would also reorder English-first items. Draw the marker independently. */
+    /* Native list markers follow the direction property. Draw unordered markers
+       independently so every item can keep its own correct bidi base. */
     ul.${RTL_CLASS}, ul:has(> li.${RTL_CLASS}) {
       padding-inline-start: 0 !important;
     }
@@ -18,7 +19,6 @@ export function initStyles(): void {
       position: relative !important;
       padding-right: 1.25em !important;
       text-align: right !important;
-      unicode-bidi: plaintext !important;
     }
     ul.${RTL_CLASS} > li::before, ul > li.${RTL_CLASS}::before {
       content: "•";

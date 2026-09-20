@@ -1,6 +1,8 @@
 // Apply / revert RTL on an element or a text selection, and the top-level toggle action.
 import {
   RTL_CLASS,
+  RTL_CHAR,
+  LETTER,
   WRAP_ATTR,
   PREV_DIR,
   SRC_ATTR,
@@ -12,6 +14,17 @@ import { isProtected, smartTarget, textNodesInRange } from "./dom.ts";
 import { flash, hudSet } from "./overlay.ts";
 import { touched, flags } from "./state.ts";
 
+const LTR_BASE_CLASS = "tm-rtl-base-ltr";
+const RTL_BASE_CLASS = "tm-rtl-base-rtl";
+
+function bidiBase(text: string): "ltr" | "rtl" {
+  for (const ch of text) {
+    if (RTL_CHAR.test(ch)) return "rtl";
+    if (LETTER.test(ch)) return "ltr";
+  }
+  return "ltr";
+}
+
 export function applyRTL(
   el: Element,
   src: RtlSource = "manual",
@@ -19,11 +32,11 @@ export function applyRTL(
 ): void {
   if (!el.hasAttribute(PREV_DIR))
     el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-  // Alignment is enough for the feature. Forcing a bidi base direction—through
-  // either a dir attribute or CSS direction—reorders mixed text that begins
-  // with a Latin word, so leave the element's natural direction untouched.
   el.removeAttribute("dir");
   el.classList.add(RTL_CLASS);
+  const base = bidiBase(el.textContent ?? "");
+  el.classList.toggle(LTR_BASE_CLASS, base === "ltr");
+  el.classList.toggle(RTL_BASE_CLASS, base === "rtl");
   el.setAttribute(SRC_ATTR, src);
   el.removeAttribute(SKIP_ATTR);
   touched.add(el);
@@ -49,7 +62,7 @@ export function revert(el: Element, byUser = false, quiet = false): void {
     if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
     return;
   }
-  el.classList.remove(RTL_CLASS);
+  el.classList.remove(RTL_CLASS, LTR_BASE_CLASS, RTL_BASE_CLASS);
   const prev = el.getAttribute(PREV_DIR);
   if (prev) el.setAttribute("dir", prev);
   else el.removeAttribute("dir");
@@ -79,15 +92,10 @@ export function toggleElement(raw: Element | null): void {
 export function undoAll(): void {
   flags.paused = true;
   const els = [...touched].filter((e) => e.isConnected);
-  els.forEach((el, i) => revert(el, false, i >= 40)); // only animate the first 40
+  els.forEach((el, i) => revert(el, false, i >= 40));
   touched.clear();
   const n = els.length;
-  hudSet(
-    n
-      ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"}`
-      : "Nothing to undo on this page",
-    true,
-  );
+  hudSet(n ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"}` : "Nothing to undo on this page", true);
 }
 
 function toggleSelection(sel: Selection): void {
@@ -95,38 +103,29 @@ function toggleSelection(sel: Selection): void {
   const anc = range.commonAncestorContainer;
   const ancEl = anc instanceof Element ? anc : anc.parentElement;
   if (!ancEl) return;
-
-  // Entirely inside an RTL block → revert it
   const existing = ancEl.closest("." + RTL_CLASS);
   if (existing) {
     revert(existing, true);
     sel.removeAllRanges();
     return;
   }
-
-  // Inside a rich-text editor: don't inject spans (it would fight the editor) — toggle the block instead
   if (ancEl.closest(EDITABLE)) {
     sel.removeAllRanges();
     toggleElement(ancEl);
     return;
   }
-
-  // Split the boundary text nodes and wrap each selected text node in a span
   const nodes = textNodesInRange(range);
-  const first = nodes[0],
-    last = nodes[nodes.length - 1];
+  const first = nodes[0], last = nodes[nodes.length - 1];
   if (!first || !last) return;
-  if (last === range.endContainer && range.endOffset < last.length)
-    last.splitText(range.endOffset);
+  if (last === range.endContainer && range.endOffset < last.length) last.splitText(range.endOffset);
   if (first === range.startContainer && range.startOffset > 0) {
     const rest = first.splitText(range.startOffset);
     nodes[0] = rest;
     if (first === last) nodes[nodes.length - 1] = rest;
   }
-
   let wrapped = 0;
   for (const t of nodes) {
-    if (isProtected(t.parentElement)) continue; // skip code/math
+    if (isProtected(t.parentElement)) continue;
     const parent = t.parentNode;
     if (!parent) continue;
     const span = document.createElement("span");
@@ -137,22 +136,17 @@ function toggleSelection(sel: Selection): void {
     wrapped++;
   }
   sel.removeAllRanges();
-  if (!wrapped) toggleElement(ancEl); // everything was code? try the element itself
+  if (!wrapped) toggleElement(ancEl);
 }
 
 /** What the toggle shortcut does: selection if there is one, else the hovered element. */
 export function action(lastMouseTarget: Element | null): void {
-  // Text selected inside an input/textarea → toggle the field itself
   const a = document.activeElement;
-  if (
-    (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement) &&
-    a.selectionStart !== a.selectionEnd
-  ) {
+  if ((a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement) && a.selectionStart !== a.selectionEnd) {
     toggleElement(a);
     return;
   }
   const sel = window.getSelection();
-  if (sel && sel.rangeCount && !sel.isCollapsed && sel.toString().trim())
-    toggleSelection(sel);
+  if (sel && sel.rangeCount && !sel.isCollapsed && sel.toString().trim()) toggleSelection(sel);
   else toggleElement(lastMouseTarget);
 }
