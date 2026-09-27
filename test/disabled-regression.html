@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>RTL disabled regressions</title>
+  </head>
+  <body>
+    <p id="saved" class="remember-me">Remember on this site</p>
+    <div id="host"></div>
+    <div id="out">running…</div>
+    <script>
+      const store = { onboarded: true, "auto-detect": false, "site-rules": {} };
+      window.GM_getValue = (key, fallback) =>
+        key in store ? store[key] : fallback;
+      window.GM_setValue = (key, value) => {
+        store[key] = value;
+      };
+      window.GM_registerMenuCommand = (label, fn) =>
+        ((window.__menu ??= {})[label] = fn);
+      window.GM_addStyle = (css) => {
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+      };
+      document.getElementById("host").attachShadow({ mode: "open" }).innerHTML =
+        '<p id="manual">متن فارسی برای تغییر دستی</p>';
+    </script>
+    <script src="../rtl-anywhere.user.js"></script>
+    <script>
+      const results = [];
+      const check = (name, condition) =>
+        results.push(`${condition ? "PASS" : "FAIL"} ${name}`);
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const pick = (element) => {
+        window.__menu["Pick mode"]();
+        element.dispatchEvent(
+          new MouseEvent("mousemove", { bubbles: true, composed: true }),
+        );
+        element.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            composed: true,
+            cancelable: true,
+            shiftKey: true,
+          }),
+        );
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { code: "Escape", bubbles: true }),
+        );
+      };
+      (async () => {
+        try {
+          await wait(400);
+          const manual = document
+            .getElementById("host")
+            .shadowRoot.getElementById("manual");
+          manual.dispatchEvent(
+            new MouseEvent("mousemove", { bubbles: true, composed: true }),
+          );
+          document.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              code: "KeyR",
+              altKey: true,
+              bubbles: true,
+            }),
+          );
+          check(
+            "manual toggle styles shadow text without auto detection",
+            getComputedStyle(manual).textAlign === "right",
+          );
+          const saved = document.getElementById("saved");
+          pick(saved);
+          const later = document.createElement("p");
+          later.id = "saved";
+          later.textContent = "Loaded after first rule";
+          document.body.append(later);
+          await wait(600);
+          check(
+            "first saved rule starts observer without auto",
+            later.dataset.tmRtlSrc === "site",
+          );
+        } catch (error) {
+          results.push(`FAIL uncaught ${error.stack}`);
+        }
+        document.getElementById("out").textContent =
+          results.join("\n") +
+          `\n\n${results.filter((x) => x.startsWith("PASS")).length}/${results.length} passed`;
+      })();
+    </script>
+  </body>
+</html>

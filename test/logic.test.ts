@@ -37,8 +37,8 @@ test("isMostlyRTL flips Persian, Arabic and Hebrew but not English", () => {
   assert.ok(!isMostlyRTL("Hello world"));
 });
 
-test("isMostlyRTL ignores text too short to judge", () => {
-  assert.ok(!isMostlyRTL("سل")); // 2 letters
+test("isMostlyRTL recognizes short Persian answers but ignores numbers", () => {
+  assert.ok(isMostlyRTL("نه"));
   assert.ok(!isMostlyRTL("۱۲۳"), "digits alone must not count");
   assert.ok(!isMostlyRTL(""));
 });
@@ -49,6 +49,11 @@ test("isMostlyRTL respects the ratio threshold in both directions", () => {
   assert.ok(isMostlyRTL("سلامدنیا" + "abcd".slice(0, 2)));
   // Mostly Latin with a couple of Persian words stays LTR
   assert.ok(!isMostlyRTL("The library سلام is great and well documented"));
+});
+
+test("Persian-first mixed replies are detected despite English terminology", () => {
+  assert.ok(isMostlyRTL("این API supports multiple formats and options"));
+  assert.ok(!isMostlyRTL("The API supports multiple formats: سلام"));
 });
 
 test("formatCombo renders mac and non-mac shortcuts", () => {

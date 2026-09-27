@@ -1,6 +1,8 @@
 // Settings panel: Shortcuts / Auto / Sites, rendered inside a shadow root.
 import { HOST } from "./env.ts";
 import { drawHover } from "./overlay.ts";
+import { stopPick } from "./pick.ts";
+import { queryPath } from "./selector.ts";
 import { formatCombo } from "./keys.ts";
 import type { ShortcutId } from "./keys.ts";
 import {
@@ -36,6 +38,7 @@ export function closePanel(): void {
 }
 
 export function openPanel(tab: PanelTab = "keys"): void {
+  stopPick();
   closePanel();
   const host = document.createElement("div");
   panelHost = host;
@@ -139,7 +142,7 @@ export function openPanel(tab: PanelTab = "keys"): void {
       });
       r.addEventListener("mouseenter", () => {
         try {
-          const el = document.querySelector(sel);
+          const el = queryPath(document, sel)[0];
           if (el) {
             el.scrollIntoView({ block: "nearest" });
             drawHover(el);

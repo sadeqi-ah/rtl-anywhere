@@ -6,16 +6,22 @@ import { applyRTL, revert } from "./core.ts";
 import { hudSet } from "./overlay.ts";
 import { flags } from "./state.ts";
 import { siteRules, saveRules, ruleFor } from "./rules.ts";
-import { cssPath } from "./selector.ts";
+import { cssPath, queryPath } from "./selector.ts";
+import { ensureObserver } from "./observer.ts";
 
 export function toggleSiteRule(el: Element): void {
   const existing = ruleFor(el);
   if (existing) {
-    saveRules(siteRules.filter((r) => r !== existing));
-    if (el.classList.contains(RTL_CLASS)) revert(el, true);
+    removeRule(existing);
     hudSet(`Forgot this element for <b>${esc(HOST)}</b>`, true);
   } else {
-    saveRules([...siteRules, cssPath(el)]);
+    const path = cssPath(el);
+    if (!path) {
+      hudSet("Cannot remember this element", true);
+      return;
+    }
+    saveRules([...siteRules, path]);
+    ensureObserver();
     if (el.classList.contains(RTL_CLASS)) el.setAttribute(SRC_ATTR, "site");
     else applyRTL(el, "site");
     hudSet(`Remembered for <b>${esc(HOST)}</b> — applied on every visit`, true);
@@ -27,8 +33,15 @@ export function applySiteRules(root: Document | Element = document): void {
   for (const sel of siteRules) {
     let list: Element[];
     try {
-      list = [...root.querySelectorAll(sel)];
-      if (root instanceof Element && root.matches(sel)) list.push(root);
+      list = sel.includes(" >>> ")
+        ? queryPath(document, sel).filter(
+            (el) =>
+              root === document ||
+              el === root ||
+              (root instanceof Element && root.shadowRoot?.contains(el)) ||
+              root.contains(el),
+          )
+        : queryPath(root, sel);
     } catch {
       continue; // invalid or unsupported selector: skip, don't kill the loop
     }
@@ -45,12 +58,14 @@ export function applySiteRules(root: Document | Element = document): void {
 }
 
 export function removeRule(sel: string): void {
-  saveRules(siteRules.filter((r) => r !== sel));
+  let matches: Element[] = [];
   try {
-    document.querySelectorAll(sel).forEach((el) => {
-      if (el.getAttribute(SRC_ATTR) === "site") revert(el, false, true);
-    });
+    matches = queryPath(document, sel);
   } catch {
     // selector no longer parses; the rule is gone either way
   }
+  saveRules(siteRules.filter((r) => r !== sel));
+  matches.forEach((el) => {
+    if (el.getAttribute(SRC_ATTR) === "site") revert(el, false, true);
+  });
 }

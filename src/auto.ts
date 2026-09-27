@@ -45,14 +45,18 @@ export function ownText(el: Element): string {
 }
 
 function considerAuto(el: Element): void {
-  if (
-    !el.isConnected ||
-    el.classList.contains(RTL_CLASS) ||
-    el.hasAttribute(SKIP_ATTR)
-  )
-    return;
+  if (!el.isConnected || el.hasAttribute(SKIP_ATTR)) return;
+  const source = el.getAttribute(SRC_ATTR);
+  if (el.classList.contains(RTL_CLASS) && source !== "auto") return;
   const text = ownText(el);
-  if (text.length < 3 || !isMostlyRTL(text)) return;
+  if (!isMostlyRTL(text)) {
+    if (source === "auto") {
+      revert(el, false, true);
+      auto.count--;
+    }
+    return;
+  }
+  if (source === "auto") return;
   if (
     el.closest(
       `.${RTL_CLASS}, ${PROTECTED}, ${EDITABLE}, textarea, input, select, script, style`,
@@ -73,19 +77,20 @@ const idle = (fn: () => void): void => {
 };
 
 /** Scans in idle chunks so a big page never blocks the main thread. */
-export function autoScan(root: Document | Element | null): void {
+export function autoScan(root: Document | ShadowRoot | Element | null): void {
   if (!auto.on || flags.paused || !root) return;
   const nodes = [...root.querySelectorAll(AUTO_CANDIDATES)];
   if (root instanceof Element && root.matches(AUTO_CANDIDATES))
     nodes.unshift(root);
   let i = 0;
   const step = () => {
+    if (!auto.on || flags.paused) return;
     const end = Math.min(i + 150, nodes.length);
     for (; i < end; i++) {
       const el = nodes[i];
       if (el) considerAuto(el);
     }
-    if (i < nodes.length) idle(step);
+    if (i < nodes.length && auto.on && !flags.paused) idle(step);
   };
   idle(step);
 }
@@ -103,6 +108,19 @@ function applyAutoState(): void {
       .forEach((el) => revert(el, false, true));
     auto.count = 0;
   }
+  // querySelectorAll never crosses shadow boundaries; settings changes must reach them too.
+  const visit = (root: Document | ShadowRoot) => {
+    for (const el of root.querySelectorAll("*")) {
+      if (!el.shadowRoot) continue;
+      if (auto.on && !wasOn) autoScan(el.shadowRoot);
+      else if (!auto.on && wasOn)
+        el.shadowRoot
+          .querySelectorAll(`.${RTL_CLASS}[${SRC_ATTR}="auto"]`)
+          .forEach((node) => revert(node, false, true));
+      visit(el.shadowRoot);
+    }
+  };
+  if (auto.on !== wasOn) visit(document);
 }
 
 export function setAuto(on: boolean): void {

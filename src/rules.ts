@@ -3,6 +3,7 @@
 import { K } from "./constants.ts";
 import { HOST } from "./env.ts";
 import { getValue, setValue } from "./gm.ts";
+import { matchesPath } from "./selector.ts";
 
 export let siteRules: string[] = getValue(K.sites, {})[HOST] ?? [];
 
@@ -19,7 +20,7 @@ export function saveRules(list: string[]): void {
 export function ruleFor(el: Element): string | null {
   for (const sel of siteRules) {
     try {
-      if (el.matches(sel)) return sel;
+      if (matchesPath(el, sel)) return sel;
     } catch {
       // a stored selector can become invalid after a site redesign
     }

@@ -1,0 +1,237 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>RTL regressions</title>
+  </head>
+  <body>
+    <p id="latin-first">
+      GitHub: این یک پاسخ فارسی با واژهٔ انگلیسی در ابتدا است.
+    </p>
+    <p id="short">نه</p>
+    <ul id="mixed-list">
+      <li id="latin-li">GitHub محل انتشار سورس و نسخه‌های جدید پروژه است.</li>
+      <li id="persian-li">این آیتم فارسی است.</li>
+    </ul>
+    <ol id="numbered-list" start="3">
+      <li id="numbered-li">GitHub برای این آیتم فارسی است.</li>
+    </ol>
+    <p id="change">این متن در ابتدا فارسی است و بعداً عوض می‌شود.</p>
+    <p id="protected">Before <code id="code">const x = 1;</code> after.</p>
+    <p id="saved" class="saved">Saved rule target</p>
+    <p id="sibling" class="saved">Another saved rule target</p>
+    <p id="dynamic">Class added later</p>
+    <div id="shadow-host"></div>
+    <div id="out">running…</div>
+    <script>
+      const store = { "auto-detect": true, onboarded: true, "site-rules": {} };
+      window.GM_getValue = (key, fallback) =>
+        key in store ? store[key] : fallback;
+      window.GM_setValue = (key, value) => {
+        store[key] = value;
+      };
+      window.GM_registerMenuCommand = (label, fn) =>
+        ((window.__menu ??= {})[label] = fn);
+      window.GM_addStyle = (css) => {
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+      };
+      const shadow = document
+        .getElementById("shadow-host")
+        .attachShadow({ mode: "open" });
+      shadow.innerHTML =
+        '<p id="shadow-fa">این پاسخ فارسی درون shadow root باید راست‌چین شود.</p><p id="shadow-save" class="shadow-save">Remember shadow content</p>';
+    </script>
+    <script src="../rtl-anywhere.user.js"></script>
+    <script>
+      const results = [];
+      const check = (name, condition) =>
+        results.push(`${condition ? "PASS" : "FAIL"} ${name}`);
+      const wait = (ms = 500) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+      const key = (code = "KeyR") =>
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { code, altKey: true, bubbles: true }),
+        );
+      const pick = (element) => {
+        window.__menu["Pick mode"]();
+        element.dispatchEvent(
+          new MouseEvent("mousemove", { bubbles: true, composed: true }),
+        );
+        element.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            composed: true,
+            cancelable: true,
+            shiftKey: true,
+          }),
+        );
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { code: "Escape", bubbles: true }),
+        );
+      };
+      const dir = (element) => getComputedStyle(element).direction;
+      (async () => {
+        try {
+          await wait(1100);
+          const latin = document.getElementById("latin-first");
+          check(
+            "Latin-first Persian answer stays LTR-based and right-aligned",
+            dir(latin) === "ltr" &&
+              getComputedStyle(latin).textAlign === "right",
+          );
+          check(
+            "short Persian answer is detected",
+            dir(document.getElementById("short")) === "rtl",
+          );
+          const latinItem = document.getElementById("latin-li");
+          const persianItem = document.getElementById("persian-li");
+          const numberedItem = document.getElementById("numbered-li");
+          const itemText = document.createRange();
+          itemText.selectNodeContents(latinItem);
+          check(
+            "mixed list keeps Latin text at the right",
+            dir(latinItem) === "ltr" &&
+              itemText.getBoundingClientRect().right >
+                latinItem.getBoundingClientRect().right - 40,
+          );
+          check("Persian list keeps RTL direction", dir(persianItem) === "rtl");
+          check(
+            "numbered list preserves its native marker",
+            getComputedStyle(numberedItem, "::marker").content !== "none",
+          );
+          const changing = document.getElementById("change");
+          changing.textContent = "English text replaces all the Persian text.";
+          await wait(750);
+          check(
+            "auto direction re-evaluates changed text",
+            dir(changing) === "ltr" && !changing.classList.contains("tm-rtl"),
+          );
+          const code = document.getElementById("code");
+          const range = document.createRange();
+          range.selectNodeContents(code);
+          getSelection().removeAllRanges();
+          getSelection().addRange(range);
+          key();
+          check(
+            "selecting code never changes its containing paragraph",
+            !document.getElementById("protected").classList.contains("tm-rtl"),
+          );
+          getSelection().removeAllRanges();
+          const saved = document.getElementById("saved");
+          document.getElementById("sibling").classList.remove("saved");
+          saved.removeAttribute("id");
+          pick(saved);
+          document.getElementById("dynamic").classList.add("saved");
+          await wait(600);
+          check(
+            "saved rules follow class changes",
+            document.getElementById("dynamic").classList.contains("tm-rtl"),
+          );
+          document.getElementById("sibling").classList.add("saved");
+          const later = document.createElement("p");
+          later.className = "saved";
+          later.textContent = "Inserted target";
+          document.body.append(later);
+          await wait(600);
+          check(
+            "a newly saved rule applies to later content",
+            later.classList.contains("tm-rtl"),
+          );
+          pick(saved);
+          check(
+            "forgetting a rule reverts every matching element",
+            !document.getElementById("sibling").classList.contains("tm-rtl") &&
+              !later.classList.contains("tm-rtl") &&
+              !document.getElementById("dynamic").classList.contains("tm-rtl"),
+          );
+          check(
+            "shadow Persian text gets auto RTL",
+            dir(shadow.getElementById("shadow-fa")) === "rtl" &&
+              getComputedStyle(shadow.getElementById("shadow-fa")).textAlign ===
+                "right",
+          );
+          pick(shadow.getElementById("shadow-save"));
+          check(
+            "shadow rule is saved as a usable selector",
+            (store["site-rules"][location.hostname] ?? []).some(
+              (rule) =>
+                rule.includes("shadow-host") && rule.includes("shadow-save"),
+            ),
+          );
+          const newHost = document.createElement("div");
+          newHost.id = "shadow-host";
+          newHost.attachShadow({ mode: "open" }).innerHTML =
+            '<p id="shadow-save">Recreated shadow content</p><p id="shadow-new-fa">یک متن فارسی جدید برای تست اسکن پویا.</p>';
+          document.getElementById("shadow-host").replaceWith(newHost);
+          await wait(700);
+          check(
+            "shadow rule applies when host is recreated",
+            newHost.shadowRoot.getElementById("shadow-save").dataset
+              .tmRtlSrc === "site",
+          );
+          check(
+            "dynamic shadow text is detected",
+            dir(newHost.shadowRoot.getElementById("shadow-new-fa")) === "rtl",
+          );
+          const duplicates = document.createElement("div");
+          duplicates.id = "duplicate-host";
+          duplicates.attachShadow({ mode: "open" }).innerHTML =
+            "<p>first item</p><p>second item</p>";
+          document.body.append(duplicates);
+          await wait(350);
+          pick(duplicates.shadowRoot.children[1]);
+          check(
+            "duplicate shadow children get a usable saved selector",
+            (store["site-rules"][location.hostname] ?? []).some(
+              (rule) =>
+                rule.includes("duplicate-host") &&
+                rule.includes(":nth-of-type(2)"),
+            ),
+          );
+          window.__menu["Pick mode"]();
+          window.__menu["Settings…"]();
+          const panel = [...document.documentElement.children].find((node) =>
+            node.shadowRoot?.querySelector(".panel"),
+          )?.shadowRoot;
+          panel?.querySelector('[data-tab="sites"]')?.click();
+          check(
+            "settings work when pick mode was active",
+            panel
+              ?.querySelector('[data-tab="sites"]')
+              ?.classList.contains("on"),
+          );
+          panel?.querySelector('[data-tab="auto"]')?.click();
+          const autoSwitch = panel?.querySelector(".auto-global");
+          autoSwitch?.click();
+          await wait(350);
+          check(
+            "disabling auto reverts shadow text",
+            !newHost.shadowRoot
+              .getElementById("shadow-new-fa")
+              .classList.contains("tm-rtl"),
+          );
+          autoSwitch?.click();
+          await wait(600);
+          check(
+            "re-enabling auto scans shadow text",
+            newHost.shadowRoot
+              .getElementById("shadow-new-fa")
+              .classList.contains("tm-rtl"),
+          );
+          window.__menu["Undo all on this page"]();
+          check(
+            "undo all reverts shadow rules and auto text",
+            !newHost.shadowRoot.querySelector(".tm-rtl"),
+          );
+        } catch (error) {
+          results.push(`FAIL uncaught ${error.stack}`);
+        }
+        document.getElementById("out").textContent =
+          results.join("\n") +
+          `\n\n${results.filter((x) => x.startsWith("PASS")).length}/${results.length} passed`;
+      })();
+    </script>
+  </body>
+</html>

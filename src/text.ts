@@ -12,8 +12,12 @@ export function rtlRatio(text: string): { rtl: number; total: number } {
   return { rtl, total };
 }
 
-/** Needs a few letters before it will judge, so "OK" or a lone emoji never flips a block. */
+/** Align RTL-led replies even when English terminology outnumbers Persian letters. */
 export function isMostlyRTL(text: string): boolean {
   const { rtl, total } = rtlRatio(text);
-  return total >= 3 && rtl / total >= AUTO_RATIO;
+  if (!rtl) return false;
+  return (
+    rtl / total >= AUTO_RATIO ||
+    [...text].find((ch) => LETTER.test(ch))?.match(RTL_CHAR) != null
+  );
 }

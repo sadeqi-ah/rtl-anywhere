@@ -16,6 +16,10 @@ const mime = new Map([
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    if (url.pathname === "/favicon.ico") {
+      res.writeHead(204).end();
+      return;
+    }
     const path = url.pathname === "/" ? "/test/smoke.html" : url.pathname;
     const file = resolve(join(root, path));
 
@@ -41,7 +45,10 @@ await once(server, "listening");
 const address = server.address();
 if (!address || typeof address === "string") throw new Error("No server port");
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true }).catch((error) => {
+  if (!error.message.includes("Executable doesn't exist")) throw error;
+  return chromium.launch({ channel: "chrome", headless: true });
+});
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
@@ -64,46 +71,55 @@ async function readOutput() {
 }
 
 try {
-  await page.goto(`http://127.0.0.1:${address.port}/test/smoke.html`);
+  for (const fixture of [
+    "smoke",
+    "regression",
+    "disabled-regression",
+    "idle-regression",
+  ]) {
+    await page.goto(`http://127.0.0.1:${address.port}/test/${fixture}.html`);
 
-  try {
-    await page.waitForFunction(
-      () => {
-        const text = document.getElementById("out")?.textContent ?? "";
-        return text.includes("PASS") || text.includes("FAIL");
-      },
-      undefined,
-      { timeout: 10_000 },
-    );
-  } catch (error) {
+    try {
+      await page.waitForFunction(
+        () =>
+          /\d+\/\d+ passed/.test(
+            document.getElementById("out")?.textContent ?? "",
+          ),
+        undefined,
+        { timeout: 10_000 },
+      );
+    } catch (error) {
+      const output = await readOutput();
+      throw new Error(
+        [
+          "Smoke test did not finish before the timeout.",
+          output
+            ? `Current output:\n${output}`
+            : "No #out output was available.",
+          ...errors.map((message) => `console/page error: ${message}`),
+        ].join("\n"),
+        { cause: error },
+      );
+    }
+
     const output = await readOutput();
-    throw new Error(
-      [
-        "Smoke test did not finish before the timeout.",
-        output ? `Current output:\n${output}` : "No #out output was available.",
-        ...errors.map((message) => `console/page error: ${message}`),
-      ].join("\n"),
-      { cause: error },
-    );
-  }
+    if (!output || output.trim() === "running…") {
+      throw new Error("Smoke test did not finish before the timeout");
+    }
 
-  const output = await readOutput();
-  if (!output || output.trim() === "running…") {
-    throw new Error("Smoke test did not finish before the timeout");
-  }
+    console.log(output);
 
-  console.log(output);
-
-  const failLines = output
-    .split("\n")
-    .filter((line) => line.startsWith("FAIL"));
-  if (failLines.length || errors.length) {
-    throw new Error(
-      [
-        ...failLines,
-        ...errors.map((error) => `console/page error: ${error}`),
-      ].join("\n"),
-    );
+    const failLines = output
+      .split("\n")
+      .filter((line) => line.startsWith("FAIL"));
+    if (failLines.length || errors.length) {
+      throw new Error(
+        [
+          ...failLines,
+          ...errors.map((error) => `console/page error: ${error}`),
+        ].join("\n"),
+      );
+    }
   }
 } finally {
   await page.close();

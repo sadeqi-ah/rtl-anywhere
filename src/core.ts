@@ -1,13 +1,28 @@
 // Apply / revert RTL on an element or a text selection, and the top-level toggle action.
-import { RTL_CLASS, WRAP_ATTR, PREV_DIR, SRC_ATTR, SKIP_ATTR, EDITABLE } from "./constants.ts";
+import {
+  RTL_CLASS,
+  WRAP_ATTR,
+  PREV_DIR,
+  SRC_ATTR,
+  SKIP_ATTR,
+  EDITABLE,
+} from "./constants.ts";
 import type { RtlSource } from "./constants.ts";
 import { isProtected, smartTarget, textNodesInRange } from "./dom.ts";
 import { flash, hudSet } from "./overlay.ts";
 import { touched, flags } from "./state.ts";
+import { initStyles } from "./styles.ts";
 
-export function applyRTL(el: Element, src: RtlSource = "manual", quiet = false): void {
-  if (!el.hasAttribute(PREV_DIR)) el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-  el.setAttribute("dir", "rtl");
+export function applyRTL(
+  el: Element,
+  src: RtlSource = "manual",
+  quiet = false,
+): void {
+  const root = el.getRootNode();
+  if (root instanceof ShadowRoot) initStyles(root);
+  if (!el.hasAttribute(PREV_DIR))
+    el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
+  el.setAttribute("dir", "auto");
   el.classList.add(RTL_CLASS);
   el.setAttribute(SRC_ATTR, src);
   el.removeAttribute(SKIP_ATTR);
@@ -49,7 +64,10 @@ export function toggleExact(el: Element): void {
 export function toggleElement(raw: Element | null): void {
   if (!raw) return;
   const existing = raw.closest("." + RTL_CLASS);
-  if (existing) { revert(existing, true); return; }
+  if (existing) {
+    revert(existing, true);
+    return;
+  }
   const el = smartTarget(raw);
   if (el) applyRTL(el, "manual");
 }
@@ -60,7 +78,12 @@ export function undoAll(): void {
   els.forEach((el, i) => revert(el, false, i >= 40));
   touched.clear();
   const n = els.length;
-  hudSet(n ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"}` : "Nothing to undo on this page", true);
+  hudSet(
+    n
+      ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"}`
+      : "Nothing to undo on this page",
+    true,
+  );
 }
 
 function toggleSelection(sel: Selection): void {
@@ -69,12 +92,22 @@ function toggleSelection(sel: Selection): void {
   const ancEl = anc instanceof Element ? anc : anc.parentElement;
   if (!ancEl) return;
   const existing = ancEl.closest("." + RTL_CLASS);
-  if (existing) { revert(existing, true); sel.removeAllRanges(); return; }
-  if (ancEl.closest(EDITABLE)) { sel.removeAllRanges(); toggleElement(ancEl); return; }
+  if (existing) {
+    revert(existing, true);
+    sel.removeAllRanges();
+    return;
+  }
+  if (ancEl.closest(EDITABLE)) {
+    sel.removeAllRanges();
+    toggleElement(ancEl);
+    return;
+  }
   const nodes = textNodesInRange(range);
-  const first = nodes[0], last = nodes[nodes.length - 1];
+  const first = nodes[0],
+    last = nodes[nodes.length - 1];
   if (!first || !last) return;
-  if (last === range.endContainer && range.endOffset < last.length) last.splitText(range.endOffset);
+  if (last === range.endContainer && range.endOffset < last.length)
+    last.splitText(range.endOffset);
   if (first === range.startContainer && range.startOffset > 0) {
     const rest = first.splitText(range.startOffset);
     nodes[0] = rest;
@@ -93,13 +126,21 @@ function toggleSelection(sel: Selection): void {
     wrapped++;
   }
   sel.removeAllRanges();
-  if (!wrapped) toggleElement(ancEl);
+  if (!wrapped && !nodes.some((node) => isProtected(node.parentElement)))
+    toggleElement(ancEl);
 }
 
 export function action(lastMouseTarget: Element | null): void {
   const a = document.activeElement;
-  if ((a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement) && a.selectionStart !== a.selectionEnd) { toggleElement(a); return; }
+  if (
+    (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement) &&
+    a.selectionStart !== a.selectionEnd
+  ) {
+    toggleElement(a);
+    return;
+  }
   const sel = window.getSelection();
-  if (sel && sel.rangeCount && !sel.isCollapsed && sel.toString().trim()) toggleSelection(sel);
+  if (sel && sel.rangeCount && !sel.isCollapsed && sel.toString().trim())
+    toggleSelection(sel);
   else toggleElement(lastMouseTarget);
 }

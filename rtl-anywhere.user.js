@@ -22,7 +22,6 @@
 (() => {
   // src/constants.ts
   var RTL_CLASS = "tm-rtl";
-  var RTL_DIR_CLASS = "tm-rtl-dir";
   var WRAP_ATTR = "data-tm-rtl-wrap";
   var PREV_DIR = "data-tm-rtl-dir";
   var SRC_ATTR = "data-tm-rtl-src";
@@ -112,18 +111,36 @@
   }
 
   // src/styles.ts
-  function initStyles() {
-    addStyle(`
+  var styled = /* @__PURE__ */ new WeakSet();
+  function initStyles(root = document) {
+    if (styled.has(root)) return;
+    styled.add(root);
+    const css = `
     .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
-    .${RTL_DIR_CLASS} { direction: rtl !important; }
-    /* Code and math inside an RTL block always stay LTR */
+    /* Unordered markers stay on the right without forcing LTR-led text to RTL. */
+    ul.${RTL_CLASS}, ul:has(> li.${RTL_CLASS}) { padding-inline-start: 0 !important; }
+    ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} {
+      display: block !important; list-style: none !important; position: relative !important;
+      padding-right: 1.25em !important; text-align: right !important;
+    }
+    ul.${RTL_CLASS} > li::before, ul > li.${RTL_CLASS}::before {
+      content: "•"; position: absolute; right: 0; top: 0; width: 1em;
+      text-align: center; direction: ltr; unicode-bidi: isolate;
+    }
+    /* Code and math inside an RTL block always stay LTR. */
     .${RTL_CLASS} :is(${PROTECTED}), .${RTL_CLASS} :is(${PROTECTED}) * {
       direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important;
     }
     body.tm-rtl-picking, body.tm-rtl-picking * { cursor: crosshair !important; }
 
     @property --beam-angle { syntax: "<angle>"; initial-value: 0deg; inherits: true; }
-  `);
+  `;
+    if (root instanceof Document) addStyle(css);
+    else {
+      const style = document.createElement("style");
+      style.textContent = css;
+      root.append(style);
+    }
   }
 
   // src/env.ts
@@ -358,6 +375,78 @@
     return n;
   }
 
+  // src/selector.ts
+  var stableClass = (c) => !!c && c.length < 32 && !/\d/.test(c) && !c.startsWith("tm-rtl") && !/^(is|has|js)-|--|active|hover|focus|selected|open/i.test(c);
+  var stableId = (id) => !!id && !/\d{3,}/.test(id) && !/^[a-f0-9]{8,}$/i.test(id) && !id.startsWith(":");
+  function cssPath(el) {
+    const root = el.getRootNode();
+    if (root instanceof ShadowRoot) {
+      const hostPath = cssPath(root.host);
+      if (!hostPath) return "";
+      return hostPath + " >>> " + pathInRoot(el, root);
+    }
+    return pathInRoot(el, document);
+  }
+  function queryPath(root, path) {
+    const [first, ...rest] = path.split(" >>> ");
+    if (!first) return [];
+    const matches2 = [...root.querySelectorAll(first)];
+    if (root instanceof Element && root.matches(first)) matches2.push(root);
+    if (!rest.length) return matches2;
+    return matches2.flatMap(
+      (el) => el.shadowRoot ? queryPath(el.shadowRoot, rest.join(" >>> ")) : []
+    );
+  }
+  function matchesPath(el, path) {
+    return path.includes(" >>> ") ? queryPath(document, path).includes(el) : el.matches(path);
+  }
+  function pathInRoot(el, root) {
+    const parts2 = [];
+    let node = el;
+    while (node && node !== document.body && node !== document.documentElement) {
+      if (stableId(node.id)) {
+        parts2.unshift("#" + CSS.escape(node.id));
+        break;
+      }
+      let seg = node.localName;
+      const cls = [...node.classList].filter(stableClass).slice(0, 2);
+      if (cls.length) seg += cls.map((c) => "." + CSS.escape(c)).join("");
+      const parent = node.parentElement ?? (root instanceof ShadowRoot && node.parentNode === root ? root : null);
+      if (parent) {
+        const same = [...parent.children].filter((s) => {
+          try {
+            return s.matches(seg);
+          } catch {
+            return false;
+          }
+        });
+        if (same.length > 1) {
+          const localName = node.localName;
+          const idx = [...parent.children].filter((s) => s.localName === localName).indexOf(node) + 1;
+          seg += `:nth-of-type(${idx})`;
+        }
+      }
+      parts2.unshift(seg);
+      node = parent instanceof Element ? parent : null;
+    }
+    const sel = parts2.join(" > ");
+    try {
+      if (root.querySelectorAll(sel).length === 1) return sel;
+    } catch {
+    }
+    const full = [];
+    let n = el;
+    while (n && n !== document.body) {
+      const p = n.parentElement ?? (root instanceof ShadowRoot && n.parentNode === root ? root : null);
+      if (!p) break;
+      const localName = n.localName;
+      const idx = [...p.children].filter((s) => s.localName === localName).indexOf(n) + 1;
+      full.unshift(`${localName}:nth-of-type(${idx})`);
+      n = p instanceof Element ? p : null;
+    }
+    return root instanceof ShadowRoot ? full.join(" > ") : "body > " + full.join(" > ");
+  }
+
   // src/rules.ts
   var siteRules = getValue(K.sites, {})[HOST] ?? [];
   var allSites = () => getValue(K.sites, {});
@@ -371,7 +460,7 @@
   function ruleFor(el) {
     for (const sel of siteRules) {
       try {
-        if (el.matches(sel)) return sel;
+        if (matchesPath(el, sel)) return sel;
       } catch {
       }
     }
@@ -540,16 +629,13 @@
   }
 
   // src/core.ts
-  var FIRST_STRONG_RTL = /^[^A-Za-z\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]*[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
   function applyRTL(el, src = "manual", quiet = false) {
+    const root = el.getRootNode();
+    if (root instanceof ShadowRoot) initStyles(root);
     if (!el.hasAttribute(PREV_DIR))
       el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-    el.removeAttribute("dir");
+    el.setAttribute("dir", "auto");
     el.classList.add(RTL_CLASS);
-    el.classList.toggle(
-      RTL_DIR_CLASS,
-      FIRST_STRONG_RTL.test(el.textContent ?? "")
-    );
     el.setAttribute(SRC_ATTR, src);
     el.removeAttribute(SKIP_ATTR);
     touched.add(el);
@@ -571,7 +657,7 @@
       if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
       return;
     }
-    el.classList.remove(RTL_CLASS, RTL_DIR_CLASS);
+    el.classList.remove(RTL_CLASS, "tm-rtl-base-ltr", "tm-rtl-base-rtl");
     const prev = el.getAttribute(PREV_DIR);
     if (prev) el.setAttribute("dir", prev);
     else el.removeAttribute("dir");
@@ -643,7 +729,8 @@
       wrapped++;
     }
     sel.removeAllRanges();
-    if (!wrapped) toggleElement(ancEl);
+    if (!wrapped && !nodes.some((node) => isProtected(node.parentElement)))
+      toggleElement(ancEl);
   }
   function action(lastMouseTarget2) {
     const a = document.activeElement;
@@ -657,65 +744,77 @@
     else toggleElement(lastMouseTarget2);
   }
 
-  // src/selector.ts
-  var stableClass = (c) => !!c && c.length < 32 && !/\d/.test(c) && !c.startsWith("tm-rtl") && !/^(is|has|js)-|--|active|hover|focus|selected|open/i.test(c);
-  var stableId = (id) => !!id && !/\d{3,}/.test(id) && !/^[a-f0-9]{8,}$/i.test(id) && !id.startsWith(":");
-  function cssPath(el) {
-    const parts2 = [];
-    let node = el;
-    while (node && node !== document.body && node !== document.documentElement) {
-      if (stableId(node.id)) {
-        parts2.unshift("#" + CSS.escape(node.id));
-        break;
+  // src/observer.ts
+  var moTimer = 0;
+  var onFlush = null;
+  var observers = /* @__PURE__ */ new WeakMap();
+  var pending = /* @__PURE__ */ new Set();
+  var setFlushHandler = (fn) => {
+    onFlush = fn;
+  };
+  function ensureObserver(root = document.body) {
+    if (!root || observers.has(root)) return;
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === "childList")
+          m.addedNodes.forEach((n) => {
+            if (n instanceof Element) {
+              pending.add(n);
+              observeShadows(n);
+            } else if (n.parentElement) pending.add(n.parentElement);
+          });
+        else if (m.target instanceof Element) pending.add(m.target);
+        else if (m.target.parentElement) pending.add(m.target.parentElement);
       }
-      let seg = node.localName;
-      const cls = [...node.classList].filter(stableClass).slice(0, 2);
-      if (cls.length) seg += cls.map((c) => "." + CSS.escape(c)).join("");
-      const parent = node.parentElement;
-      if (parent) {
-        const same = [...parent.children].filter((s) => {
-          try {
-            return s.matches(seg);
-          } catch {
-            return false;
-          }
-        });
-        if (same.length > 1) {
-          const localName = node.localName;
-          const idx = [...parent.children].filter((s) => s.localName === localName).indexOf(node) + 1;
-          seg += `:nth-of-type(${idx})`;
-        }
-      }
-      parts2.unshift(seg);
-      node = parent;
+      if (pending.size && !moTimer)
+        moTimer = window.setTimeout(flushPending, 250);
+    });
+    mo.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["class", "id", "dir"]
+    });
+    observers.set(root, mo);
+    observeShadows(root);
+  }
+  function observeShadows(root) {
+    const elements = root instanceof Element ? [root, ...root.querySelectorAll("*")] : root.querySelectorAll("*");
+    for (const el of elements) {
+      if (!el.shadowRoot) continue;
+      initStyles(el.shadowRoot);
+      ensureObserver(el.shadowRoot);
+      for (const child of el.shadowRoot.children) pending.add(child);
     }
-    const sel = parts2.join(" > ");
-    try {
-      if (document.querySelectorAll(sel).length === 1) return sel;
-    } catch {
+    if (pending.size && !moTimer) moTimer = window.setTimeout(flushPending, 250);
+  }
+  function flushPending() {
+    moTimer = 0;
+    const roots = [...pending];
+    pending.clear();
+    if (flags.paused || !onFlush) return;
+    for (const n of roots) {
+      if (!n.isConnected) continue;
+      const el = n.matches(AUTO_CANDIDATES) ? n : n.closest(AUTO_CANDIDATES) ?? n;
+      onFlush(el);
     }
-    const full = [];
-    let n = el;
-    while (n && n !== document.body) {
-      const p = n.parentElement;
-      if (!p) break;
-      const localName = n.localName;
-      const idx = [...p.children].filter((s) => s.localName === localName).indexOf(n) + 1;
-      full.unshift(`${localName}:nth-of-type(${idx})`);
-      n = p;
-    }
-    return "body > " + full.join(" > ");
   }
 
   // src/sites.ts
   function toggleSiteRule(el) {
     const existing = ruleFor(el);
     if (existing) {
-      saveRules(siteRules.filter((r) => r !== existing));
-      if (el.classList.contains(RTL_CLASS)) revert(el, true);
+      removeRule(existing);
       hudSet(`Forgot this element for <b>${esc(HOST)}</b>`, true);
     } else {
-      saveRules([...siteRules, cssPath(el)]);
+      const path = cssPath(el);
+      if (!path) {
+        hudSet("Cannot remember this element", true);
+        return;
+      }
+      saveRules([...siteRules, path]);
+      ensureObserver();
       if (el.classList.contains(RTL_CLASS)) el.setAttribute(SRC_ATTR, "site");
       else applyRTL(el, "site");
       hudSet(`Remembered for <b>${esc(HOST)}</b> — applied on every visit`, true);
@@ -726,8 +825,9 @@
     for (const sel of siteRules) {
       let list;
       try {
-        list = [...root.querySelectorAll(sel)];
-        if (root instanceof Element && root.matches(sel)) list.push(root);
+        list = sel.includes(" >>> ") ? queryPath(document, sel).filter(
+          (el) => root === document || el === root || root instanceof Element && root.shadowRoot?.contains(el) || root.contains(el)
+        ) : queryPath(root, sel);
       } catch {
         continue;
       }
@@ -739,13 +839,15 @@
     }
   }
   function removeRule(sel) {
-    saveRules(siteRules.filter((r) => r !== sel));
+    let matches2 = [];
     try {
-      document.querySelectorAll(sel).forEach((el) => {
-        if (el.getAttribute(SRC_ATTR) === "site") revert(el, false, true);
-      });
+      matches2 = queryPath(document, sel);
     } catch {
     }
+    saveRules(siteRules.filter((r) => r !== sel));
+    matches2.forEach((el) => {
+      if (el.getAttribute(SRC_ATTR) === "site") revert(el, false, true);
+    });
   }
 
   // src/pick.ts
@@ -866,47 +968,8 @@
   }
   function isMostlyRTL(text) {
     const { rtl, total } = rtlRatio(text);
-    return total >= 3 && rtl / total >= AUTO_RATIO;
-  }
-
-  // src/observer.ts
-  var mo = null;
-  var moTimer = 0;
-  var onFlush = null;
-  var pending = /* @__PURE__ */ new Set();
-  var setFlushHandler = (fn) => {
-    onFlush = fn;
-  };
-  function ensureObserver() {
-    if (mo || !document.body) return;
-    mo = new MutationObserver((muts) => {
-      for (const m of muts) {
-        if (m.type === "childList")
-          m.addedNodes.forEach((n) => {
-            if (n instanceof Element) pending.add(n);
-            else if (n.parentElement) pending.add(n.parentElement);
-          });
-        else if (m.target.parentElement) pending.add(m.target.parentElement);
-      }
-      if (pending.size && !moTimer)
-        moTimer = window.setTimeout(flushPending, 250);
-    });
-    mo.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
-  }
-  function flushPending() {
-    moTimer = 0;
-    const roots = [...pending];
-    pending.clear();
-    if (flags.paused || !onFlush) return;
-    for (const n of roots) {
-      if (!n.isConnected) continue;
-      const el = n.matches(AUTO_CANDIDATES) ? n : n.closest(AUTO_CANDIDATES) ?? n;
-      onFlush(el);
-    }
+    if (!rtl) return false;
+    return rtl / total >= AUTO_RATIO || [...text].find((ch) => LETTER.test(ch))?.match(RTL_CHAR) != null;
   }
 
   // src/auto.ts
@@ -931,10 +994,18 @@
     return out;
   }
   function considerAuto(el) {
-    if (!el.isConnected || el.classList.contains(RTL_CLASS) || el.hasAttribute(SKIP_ATTR))
-      return;
+    if (!el.isConnected || el.hasAttribute(SKIP_ATTR)) return;
+    const source = el.getAttribute(SRC_ATTR);
+    if (el.classList.contains(RTL_CLASS) && source !== "auto") return;
     const text = ownText(el);
-    if (text.length < 3 || !isMostlyRTL(text)) return;
+    if (!isMostlyRTL(text)) {
+      if (source === "auto") {
+        revert(el, false, true);
+        auto.count--;
+      }
+      return;
+    }
+    if (source === "auto") return;
     if (el.closest(
       `.${RTL_CLASS}, ${PROTECTED}, ${EDITABLE}, textarea, input, select, script, style`
     ))
@@ -955,12 +1026,13 @@
       nodes.unshift(root);
     let i = 0;
     const step = () => {
+      if (!auto.on || flags.paused) return;
       const end = Math.min(i + 150, nodes.length);
       for (; i < end; i++) {
         const el = nodes[i];
         if (el) considerAuto(el);
       }
-      if (i < nodes.length) idle(step);
+      if (i < nodes.length && auto.on && !flags.paused) idle(step);
     };
     idle(step);
   }
@@ -975,6 +1047,16 @@
       document.querySelectorAll(`.${RTL_CLASS}[${SRC_ATTR}="auto"]`).forEach((el) => revert(el, false, true));
       auto.count = 0;
     }
+    const visit = (root) => {
+      for (const el of root.querySelectorAll("*")) {
+        if (!el.shadowRoot) continue;
+        if (auto.on && !wasOn) autoScan(el.shadowRoot);
+        else if (!auto.on && wasOn)
+          el.shadowRoot.querySelectorAll(`.${RTL_CLASS}[${SRC_ATTR}="auto"]`).forEach((node) => revert(node, false, true));
+        visit(el.shadowRoot);
+      }
+    };
+    if (auto.on !== wasOn) visit(document);
   }
   function setAuto(on) {
     auto.global = on;
@@ -1158,6 +1240,7 @@
     document.removeEventListener("mousedown", onOutsideDown, true);
   }
   function openPanel(tab = "keys") {
+    stopPick();
     closePanel();
     const host2 = document.createElement("div");
     panelHost = host2;
@@ -1246,7 +1329,7 @@
         });
         r.addEventListener("mouseenter", () => {
           try {
-            const el = document.querySelector(sel);
+            const el = queryPath(document, sel)[0];
             if (el) {
               el.scrollIntoView({ block: "nearest" });
               drawHover(el);

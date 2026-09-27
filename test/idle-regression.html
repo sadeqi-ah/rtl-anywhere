@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Idle scan regression</title>
+  </head>
+  <body>
+    <p id="fa">این متن فارسی در صف اسکن خودکار منتظر می‌ماند.</p>
+    <div id="out">running…</div>
+    <script>
+      const queue = [];
+      const store = { onboarded: true, "auto-detect": true };
+      window.requestIdleCallback = (fn) => {
+        queue.push(fn);
+        return queue.length;
+      };
+      window.GM_getValue = (key, fallback) =>
+        key in store ? store[key] : fallback;
+      window.GM_setValue = (key, value) => {
+        store[key] = value;
+      };
+      window.GM_registerMenuCommand = (label, fn) =>
+        ((window.__menu ??= {})[label] = fn);
+      window.GM_addStyle = (css) => {
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+      };
+    </script>
+    <script src="../rtl-anywhere.user.js"></script>
+    <script>
+      const results = [];
+      const check = (name, condition) =>
+        results.push(`${condition ? "PASS" : "FAIL"} ${name}`);
+      const panel = () =>
+        [...document.documentElement.children].find((node) =>
+          node.shadowRoot?.querySelector(".panel"),
+        )?.shadowRoot;
+      (async () => {
+        try {
+          window.__menu["Settings…"]();
+          panel().querySelector('[data-tab="auto"]').click();
+          panel().querySelector(".auto-global").click();
+          while (queue.length) queue.shift()();
+          check(
+            "queued idle scan stays off after disabling auto",
+            store["auto-detect"] === false &&
+              !document.getElementById("fa").classList.contains("tm-rtl"),
+          );
+          window.__menu["Undo all on this page"]();
+          panel().querySelector(".auto-global").click();
+          while (queue.length) queue.shift()();
+          check(
+            "enabling auto after undo scans content",
+            document.getElementById("fa").classList.contains("tm-rtl"),
+          );
+        } catch (error) {
+          results.push(`FAIL uncaught ${error.stack}`);
+        }
+        document.getElementById("out").textContent =
+          results.join("\n") +
+          `\n\n${results.filter((x) => x.startsWith("PASS")).length}/${results.length} passed`;
+      })();
+    </script>
+  </body>
+</html>
