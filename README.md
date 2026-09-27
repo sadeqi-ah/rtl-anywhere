@@ -58,7 +58,7 @@ All three main actions are also available from the Tampermonkey menu, next to **
 
 ## Auto-detect
 
-Auto-detect right-aligns paragraphs when at least 60% of their letters are RTL **or** their first letter is RTL. Even short Persian replies are included. The text's base direction follows its first strong character (`dir="auto"`), so a Persian reply starting with a Latin word keeps that word's bidi order.
+Auto-detect right-aligns paragraphs when at least 60% of their letters are RTL **or** their first letter is RTL. Even short Persian replies are included. RTL paragraphs use an RTL base direction; a leading Latin prefix is isolated LTR so punctuation such as `GitHub:` stays with the prefix while the paragraph starts on the right.
 
 It is intentionally conservative:
 

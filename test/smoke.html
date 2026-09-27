@@ -153,6 +153,10 @@
           has("saved-rule") &&
             document.getElementById("saved-rule").dataset.tmRtlSrc === "site",
         );
+        check(
+          "site: English-only rule keeps Latin reading order",
+          dir("saved-rule") === "ltr",
+        );
 
         const dynamic = document.createElement("p");
         dynamic.id = "dynamic-saved-rule";

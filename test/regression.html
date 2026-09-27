@@ -9,6 +9,10 @@
       GitHub: این یک پاسخ فارسی با واژهٔ انگلیسی در ابتدا است.
     </p>
     <p id="short">نه</p>
+    <p id="linked-first">
+      <a href="#linked-first">GitHub</a>: این متن فارسی است.
+    </p>
+    <p id="latin-changing">GitHub: این متن فارسی است.</p>
     <ul id="mixed-list">
       <li id="latin-li">GitHub محل انتشار سورس و نسخه‌های جدید پروژه است.</li>
       <li id="persian-li">این آیتم فارسی است.</li>
@@ -72,18 +76,43 @@
         );
       };
       const dir = (element) => getComputedStyle(element).direction;
+      const charX = (element, character) => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const offset = walker.currentNode.textContent.indexOf(character);
+          if (offset < 0) continue;
+          const range = document.createRange();
+          range.setStart(walker.currentNode, offset);
+          range.setEnd(walker.currentNode, offset + 1);
+          return range.getBoundingClientRect().x;
+        }
+        return NaN;
+      };
       (async () => {
         try {
           await wait(1100);
           const latin = document.getElementById("latin-first");
           check(
-            "Latin-first Persian answer stays LTR-based and right-aligned",
-            dir(latin) === "ltr" &&
-              getComputedStyle(latin).textAlign === "right",
+            "Latin-first Persian answer keeps the prefix on the right, colon after it",
+            getComputedStyle(latin).textAlign === "right" &&
+              charX(latin, "G") > charX(latin, "ا") &&
+              charX(latin, ":") > charX(latin, "G"),
+          );
+          const stablePrefix = latin.querySelector('span[dir="ltr"]');
+          await wait(600);
+          check(
+            "isolation does not repeatedly rewrite unchanged DOM",
+            latin.querySelector('span[dir="ltr"]') === stablePrefix,
           );
           check(
             "short Persian answer is detected",
             dir(document.getElementById("short")) === "rtl",
+          );
+          const linked = document.getElementById("linked-first");
+          check(
+            "linked Latin prefix keeps punctuation with the link",
+            charX(linked, ":") > charX(linked, "G") &&
+              charX(linked, "G") > charX(linked, "ا"),
           );
           const latinItem = document.getElementById("latin-li");
           const persianItem = document.getElementById("persian-li");
@@ -92,14 +121,23 @@
           itemText.selectNodeContents(latinItem);
           check(
             "mixed list keeps Latin text at the right",
-            dir(latinItem) === "ltr" &&
+            dir(latinItem) === "rtl" &&
               itemText.getBoundingClientRect().right >
-                latinItem.getBoundingClientRect().right - 40,
+                latinItem.getBoundingClientRect().right - 40 &&
+              charX(latinItem, "G") > charX(latinItem, "ا"),
           );
           check("Persian list keeps RTL direction", dir(persianItem) === "rtl");
           check(
             "numbered list preserves its native marker",
             getComputedStyle(numberedItem, "::marker").content !== "none",
+          );
+          const latinChanging = document.getElementById("latin-changing");
+          latinChanging.firstChild.textContent = "GitHub: متن تازه فارسی است.";
+          await wait(600);
+          check(
+            "Latin-first text remains isolated after dynamic edits",
+            charX(latinChanging, ":") > charX(latinChanging, "G") &&
+              charX(latinChanging, "G") > charX(latinChanging, "م"),
           );
           const changing = document.getElementById("change");
           changing.textContent = "English text replaces all the Persian text.";

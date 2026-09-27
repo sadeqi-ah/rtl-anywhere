@@ -375,6 +375,66 @@
     return n;
   }
 
+  // src/observer.ts
+  var moTimer = 0;
+  var onFlush = null;
+  var onRefresh = null;
+  var observers = /* @__PURE__ */ new WeakMap();
+  var pending = /* @__PURE__ */ new Set();
+  var setFlushHandler = (fn, refresh) => {
+    onFlush = fn;
+    onRefresh = refresh ?? null;
+  };
+  function ensureObserver(root = document.body) {
+    if (!root || observers.has(root)) return;
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === "childList")
+          m.addedNodes.forEach((n) => {
+            if (n instanceof Element) {
+              pending.add(n);
+              observeShadows(n);
+            } else if (n.parentElement) pending.add(n.parentElement);
+          });
+        else if (m.target instanceof Element) pending.add(m.target);
+        else if (m.target.parentElement) pending.add(m.target.parentElement);
+      }
+      if (pending.size && !moTimer)
+        moTimer = window.setTimeout(flushPending, 250);
+    });
+    mo.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["class", "id", "dir"]
+    });
+    observers.set(root, mo);
+    observeShadows(root);
+  }
+  function observeShadows(root) {
+    const elements = root instanceof Element ? [root, ...root.querySelectorAll("*")] : root.querySelectorAll("*");
+    for (const el of elements) {
+      if (!el.shadowRoot) continue;
+      initStyles(el.shadowRoot);
+      ensureObserver(el.shadowRoot);
+      for (const child of el.shadowRoot.children) pending.add(child);
+    }
+    if (pending.size && !moTimer) moTimer = window.setTimeout(flushPending, 250);
+  }
+  function flushPending() {
+    moTimer = 0;
+    const roots = [...pending];
+    pending.clear();
+    if (flags.paused || !onFlush) return;
+    for (const n of roots) {
+      if (!n.isConnected) continue;
+      const el = n.matches(AUTO_CANDIDATES) ? n : n.closest(AUTO_CANDIDATES) ?? n;
+      onRefresh?.(el);
+      onFlush(el);
+    }
+  }
+
   // src/selector.ts
   var stableClass = (c) => !!c && c.length < 32 && !/\d/.test(c) && !c.startsWith("tm-rtl") && !/^(is|has|js)-|--|active|hover|focus|selected|open/i.test(c);
   var stableId = (id) => !!id && !/\d{3,}/.test(id) && !/^[a-f0-9]{8,}$/i.test(id) && !id.startsWith(":");
@@ -629,12 +689,55 @@
   }
 
   // src/core.ts
+  var prefixes = /* @__PURE__ */ new WeakMap();
+  function clearLatinPrefix(el) {
+    const prefix = prefixes.get(el);
+    if (!prefix) return;
+    prefix.span.replaceWith(...prefix.span.childNodes);
+    prefixes.delete(el);
+  }
+  function isolateLatinPrefix(el) {
+    clearLatinPrefix(el);
+    if (el.matches(EDITABLE) || el.closest(EDITABLE)) return;
+    const text = el.textContent ?? "";
+    const first = [...text].find((ch) => LETTER.test(ch));
+    if (!first || RTL_CHAR.test(first) || !RTL_CHAR.test(text)) return;
+    const prefix = document.createElement("span");
+    prefix.dir = "ltr";
+    for (const node of [...el.childNodes]) {
+      if (node instanceof Element && isProtected(node)) break;
+      if (node instanceof Text) {
+        const boundary = (node.nodeValue ?? "").search(RTL_CHAR);
+        if (boundary === 0) break;
+        if (boundary > 0) node.splitText(boundary);
+        prefix.appendChild(node);
+        if (boundary >= 0) break;
+      } else if (node instanceof Element && !RTL_CHAR.test(node.textContent ?? "")) {
+        prefix.appendChild(node);
+      } else break;
+    }
+    if (!prefix.hasChildNodes()) return;
+    el.insertBefore(prefix, el.firstChild);
+    prefixes.set(el, { span: prefix, text: el.textContent ?? "" });
+  }
+  function refreshLatinPrefix(el) {
+    const prefix = prefixes.get(el);
+    if (!el.classList.contains(RTL_CLASS)) return;
+    const text = el.textContent ?? "";
+    const dir = RTL_CHAR.test(text) ? "rtl" : "auto";
+    if (el.getAttribute("dir") !== dir) el.setAttribute("dir", dir);
+    if (prefix && prefix.span.isConnected && prefix.text === text) return;
+    isolateLatinPrefix(el);
+  }
   function applyRTL(el, src = "manual", quiet = false) {
     const root = el.getRootNode();
     if (root instanceof ShadowRoot) initStyles(root);
     if (!el.hasAttribute(PREV_DIR))
       el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-    el.setAttribute("dir", "auto");
+    el.setAttribute("dir", RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto");
+    isolateLatinPrefix(el);
+    ensureObserver();
+    if (root instanceof ShadowRoot) ensureObserver(root);
     el.classList.add(RTL_CLASS);
     el.setAttribute(SRC_ATTR, src);
     el.removeAttribute(SKIP_ATTR);
@@ -652,6 +755,7 @@
   function revert(el, byUser = false, quiet = false) {
     if (!quiet) flash(el, "ltr");
     touched.delete(el);
+    clearLatinPrefix(el);
     if (el.hasAttribute(WRAP_ATTR)) {
       const parent = unwrap(el);
       if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
@@ -742,63 +846,6 @@
     if (sel && sel.rangeCount && !sel.isCollapsed && sel.toString().trim())
       toggleSelection(sel);
     else toggleElement(lastMouseTarget2);
-  }
-
-  // src/observer.ts
-  var moTimer = 0;
-  var onFlush = null;
-  var observers = /* @__PURE__ */ new WeakMap();
-  var pending = /* @__PURE__ */ new Set();
-  var setFlushHandler = (fn) => {
-    onFlush = fn;
-  };
-  function ensureObserver(root = document.body) {
-    if (!root || observers.has(root)) return;
-    const mo = new MutationObserver((muts) => {
-      for (const m of muts) {
-        if (m.type === "childList")
-          m.addedNodes.forEach((n) => {
-            if (n instanceof Element) {
-              pending.add(n);
-              observeShadows(n);
-            } else if (n.parentElement) pending.add(n.parentElement);
-          });
-        else if (m.target instanceof Element) pending.add(m.target);
-        else if (m.target.parentElement) pending.add(m.target.parentElement);
-      }
-      if (pending.size && !moTimer)
-        moTimer = window.setTimeout(flushPending, 250);
-    });
-    mo.observe(root, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["class", "id", "dir"]
-    });
-    observers.set(root, mo);
-    observeShadows(root);
-  }
-  function observeShadows(root) {
-    const elements = root instanceof Element ? [root, ...root.querySelectorAll("*")] : root.querySelectorAll("*");
-    for (const el of elements) {
-      if (!el.shadowRoot) continue;
-      initStyles(el.shadowRoot);
-      ensureObserver(el.shadowRoot);
-      for (const child of el.shadowRoot.children) pending.add(child);
-    }
-    if (pending.size && !moTimer) moTimer = window.setTimeout(flushPending, 250);
-  }
-  function flushPending() {
-    moTimer = 0;
-    const roots = [...pending];
-    pending.clear();
-    if (flags.paused || !onFlush) return;
-    for (const n of roots) {
-      if (!n.isConnected) continue;
-      const el = n.matches(AUTO_CANDIDATES) ? n : n.closest(AUTO_CANDIDATES) ?? n;
-      onFlush(el);
-    }
   }
 
   // src/sites.ts
@@ -1411,7 +1458,7 @@
   setFlushHandler((el) => {
     applySiteRules(el);
     autoScan(el);
-  });
+  }, refreshLatinPrefix);
   var undoAllAndClear = () => {
     undoAll();
     clearHover();

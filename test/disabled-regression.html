@@ -6,6 +6,7 @@
   </head>
   <body>
     <p id="saved" class="remember-me">Remember on this site</p>
+    <p id="latin-manual">GitHub: این متن فارسی است.</p>
     <div id="host"></div>
     <div id="out">running…</div>
     <script>
@@ -67,6 +68,53 @@
           check(
             "manual toggle styles shadow text without auto detection",
             getComputedStyle(manual).textAlign === "right",
+          );
+          const latinManual = document.getElementById("latin-manual");
+          latinManual.dispatchEvent(
+            new MouseEvent("mousemove", { bubbles: true }),
+          );
+          document.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              code: "KeyR",
+              altKey: true,
+              bubbles: true,
+            }),
+          );
+          const original = latinManual.textContent;
+          check(
+            "manual Latin-first paragraph is isolated without auto detection",
+            latinManual.querySelector('span[dir="ltr"]')?.textContent ===
+              "GitHub: " && getComputedStyle(latinManual).direction === "rtl",
+          );
+          latinManual.dispatchEvent(
+            new MouseEvent("mousemove", { bubbles: true }),
+          );
+          document.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              code: "KeyR",
+              altKey: true,
+              bubbles: true,
+            }),
+          );
+          check(
+            "manual revert restores original markup and text",
+            latinManual.textContent === original &&
+              !latinManual.querySelector('span[dir="ltr"]') &&
+              getComputedStyle(latinManual).direction === "ltr",
+          );
+          manual.textContent = "GitHub: متن فارسی درون سایه است.";
+          await wait(400);
+          check(
+            "manual shadow paragraph updates Latin-first prefix",
+            manual.querySelector('span[dir="ltr"]')?.textContent ===
+              "GitHub: " && getComputedStyle(manual).direction === "rtl",
+          );
+          manual.textContent = "English-only text after Persian.";
+          await wait(400);
+          check(
+            "manual shadow paragraph returns to LTR after Persian disappears",
+            getComputedStyle(manual).direction === "ltr" &&
+              !manual.querySelector('span[dir="ltr"]'),
           );
           const saved = document.getElementById("saved");
           pick(saved);

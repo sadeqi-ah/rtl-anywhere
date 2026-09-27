@@ -7,15 +7,20 @@ import { initStyles } from "./styles.ts";
 import { flags } from "./state.ts";
 
 let moTimer = 0,
-  onFlush: ((el: Element) => void) | null = null;
+  onFlush: ((el: Element) => void) | null = null,
+  onRefresh: ((el: Element) => void) | null = null;
 const observers = new WeakMap<
   Document | ShadowRoot | Element,
   MutationObserver
 >();
 const pending = new Set<Element>();
 
-export const setFlushHandler = (fn: (el: Element) => void): void => {
+export const setFlushHandler = (
+  fn: (el: Element) => void,
+  refresh?: (el: Element) => void,
+): void => {
   onFlush = fn;
+  onRefresh = refresh ?? null;
 };
 
 export function ensureObserver(
@@ -72,6 +77,7 @@ function flushPending(): void {
     const el = n.matches(AUTO_CANDIDATES)
       ? n
       : (n.closest(AUTO_CANDIDATES) ?? n);
+    onRefresh?.(el);
     onFlush(el);
   }
 }

@@ -6,12 +6,62 @@ import {
   SRC_ATTR,
   SKIP_ATTR,
   EDITABLE,
+  LETTER,
+  RTL_CHAR,
 } from "./constants.ts";
 import type { RtlSource } from "./constants.ts";
 import { isProtected, smartTarget, textNodesInRange } from "./dom.ts";
+import { ensureObserver } from "./observer.ts";
 import { flash, hudSet } from "./overlay.ts";
 import { touched, flags } from "./state.ts";
 import { initStyles } from "./styles.ts";
+
+const prefixes = new WeakMap<Element, { span: HTMLElement; text: string }>();
+
+function clearLatinPrefix(el: Element): void {
+  const prefix = prefixes.get(el);
+  if (!prefix) return;
+  prefix.span.replaceWith(...prefix.span.childNodes);
+  prefixes.delete(el);
+}
+
+function isolateLatinPrefix(el: Element): void {
+  clearLatinPrefix(el);
+  if (el.matches(EDITABLE) || el.closest(EDITABLE)) return;
+  const text = el.textContent ?? "";
+  const first = [...text].find((ch) => LETTER.test(ch));
+  if (!first || RTL_CHAR.test(first) || !RTL_CHAR.test(text)) return;
+  const prefix = document.createElement("span");
+  prefix.dir = "ltr";
+  for (const node of [...el.childNodes]) {
+    if (node instanceof Element && isProtected(node)) break;
+    if (node instanceof Text) {
+      const boundary = (node.nodeValue ?? "").search(RTL_CHAR);
+      if (boundary === 0) break;
+      if (boundary > 0) node.splitText(boundary);
+      prefix.appendChild(node);
+      if (boundary >= 0) break;
+    } else if (
+      node instanceof Element &&
+      !RTL_CHAR.test(node.textContent ?? "")
+    ) {
+      prefix.appendChild(node);
+    } else break;
+  }
+  if (!prefix.hasChildNodes()) return;
+  el.insertBefore(prefix, el.firstChild);
+  prefixes.set(el, { span: prefix, text: el.textContent ?? "" });
+}
+
+export function refreshLatinPrefix(el: Element): void {
+  const prefix = prefixes.get(el);
+  if (!el.classList.contains(RTL_CLASS)) return;
+  const text = el.textContent ?? "";
+  const dir = RTL_CHAR.test(text) ? "rtl" : "auto";
+  if (el.getAttribute("dir") !== dir) el.setAttribute("dir", dir);
+  if (prefix && prefix.span.isConnected && prefix.text === text) return;
+  isolateLatinPrefix(el);
+}
 
 export function applyRTL(
   el: Element,
@@ -22,7 +72,10 @@ export function applyRTL(
   if (root instanceof ShadowRoot) initStyles(root);
   if (!el.hasAttribute(PREV_DIR))
     el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-  el.setAttribute("dir", "auto");
+  el.setAttribute("dir", RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto");
+  isolateLatinPrefix(el);
+  ensureObserver();
+  if (root instanceof ShadowRoot) ensureObserver(root);
   el.classList.add(RTL_CLASS);
   el.setAttribute(SRC_ATTR, src);
   el.removeAttribute(SKIP_ATTR);
@@ -42,6 +95,7 @@ function unwrap(span: Element): Node | null {
 export function revert(el: Element, byUser = false, quiet = false): void {
   if (!quiet) flash(el, "ltr");
   touched.delete(el);
+  clearLatinPrefix(el);
   if (el.hasAttribute(WRAP_ATTR)) {
     const parent = unwrap(el);
     if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
