@@ -8,7 +8,6 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
-// @grant        unsafeWindow
 // @run-at       document-idle
 // @author       sadeqi-ah
 // @license      MIT
@@ -117,16 +116,8 @@
     styled.add(root);
     const css = `
     .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
-    /* Unordered markers stay on the right without forcing LTR-led text to RTL. */
-    ul.${RTL_CLASS}, ul:has(> li.${RTL_CLASS}) { padding-inline-start: 0 !important; }
-    ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} {
-      display: block !important; list-style: none !important; position: relative !important;
-      padding-right: 1.25em !important; text-align: right !important;
-    }
-    ul.${RTL_CLASS} > li::before, ul > li.${RTL_CLASS}::before {
-      content: "•"; position: absolute; right: 0; top: 0; width: 1em;
-      text-align: center; direction: ltr; unicode-bidi: isolate;
-    }
+    /* Keep each list's native marker while placing it on the RTL side. */
+    ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} { list-style-position: inside !important; }
     /* Code and math inside an RTL block always stay LTR. */
     .${RTL_CLASS} :is(${PROTECTED}), .${RTL_CLASS} :is(${PROTECTED}) * {
       direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important;
@@ -689,45 +680,10 @@
   }
 
   // src/core.ts
-  var prefixes = /* @__PURE__ */ new WeakMap();
-  function clearLatinPrefix(el) {
-    const prefix = prefixes.get(el);
-    if (!prefix) return;
-    prefix.span.replaceWith(...prefix.span.childNodes);
-    prefixes.delete(el);
-  }
-  function isolateLatinPrefix(el) {
-    clearLatinPrefix(el);
-    if (el.matches(EDITABLE) || el.closest(EDITABLE)) return;
-    const text = el.textContent ?? "";
-    const first = [...text].find((ch) => LETTER.test(ch));
-    if (!first || RTL_CHAR.test(first) || !RTL_CHAR.test(text)) return;
-    const prefix = document.createElement("span");
-    prefix.dir = "ltr";
-    for (const node of [...el.childNodes]) {
-      if (node instanceof Element && isProtected(node)) break;
-      if (node instanceof Text) {
-        const boundary = (node.nodeValue ?? "").search(RTL_CHAR);
-        if (boundary === 0) break;
-        if (boundary > 0) node.splitText(boundary);
-        prefix.appendChild(node);
-        if (boundary >= 0) break;
-      } else if (node instanceof Element && !RTL_CHAR.test(node.textContent ?? "")) {
-        prefix.appendChild(node);
-      } else break;
-    }
-    if (!prefix.hasChildNodes()) return;
-    el.insertBefore(prefix, el.firstChild);
-    prefixes.set(el, { span: prefix, text: el.textContent ?? "" });
-  }
-  function refreshLatinPrefix(el) {
-    const prefix = prefixes.get(el);
+  function refreshDirection(el) {
     if (!el.classList.contains(RTL_CLASS)) return;
-    const text = el.textContent ?? "";
-    const dir = RTL_CHAR.test(text) ? "rtl" : "auto";
+    const dir = RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto";
     if (el.getAttribute("dir") !== dir) el.setAttribute("dir", dir);
-    if (prefix && prefix.span.isConnected && prefix.text === text) return;
-    isolateLatinPrefix(el);
   }
   function applyRTL(el, src = "manual", quiet = false) {
     const root = el.getRootNode();
@@ -735,7 +691,6 @@
     if (!el.hasAttribute(PREV_DIR))
       el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
     el.setAttribute("dir", RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto");
-    isolateLatinPrefix(el);
     ensureObserver();
     if (root instanceof ShadowRoot) ensureObserver(root);
     el.classList.add(RTL_CLASS);
@@ -755,7 +710,6 @@
   function revert(el, byUser = false, quiet = false) {
     if (!quiet) flash(el, "ltr");
     touched.delete(el);
-    clearLatinPrefix(el);
     if (el.hasAttribute(WRAP_ATTR)) {
       const parent = unwrap(el);
       if (byUser && parent instanceof Element) parent.setAttribute(SKIP_ATTR, "");
@@ -1118,6 +1072,12 @@
     applyAutoState();
   }
 
+  // src/brand.ts
+  var BRAND_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" color="currentColor" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <path d="M11 3H13C16.7712 3 18.6569 3 19.8284 4.17157C21 5.34315 21 7.22876 21 11V13C21 16.7712 21 18.6569 19.8284 19.8284C18.6569 21 16.7712 21 13 21H11C7.22876 21 5.34315 21 4.17157 19.8284C3 18.6569 3 16.7712 3 13V11C3 7.22876 3 5.34315 4.17157 4.17157C5.34315 3 7.22876 3 11 3Z"></path>
+    <path d="M16 8L16 16"></path>
+</svg>`;
+
   // src/ui-css.ts
   var UI_CSS = `
     :host { all: initial; }
@@ -1228,7 +1188,7 @@
       <div class="panel">
         <div class="hdr">
           <div class="t" style="display:flex;align-items:center;gap:10px">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${BRAND_ICON}
             <div>RTL Anywhere<small>Configure behavior and shortcuts</small></div>
           </div>
           <button class="x" title="Close" aria-label="Close">
@@ -1406,7 +1366,7 @@
       <style>${UI_CSS}</style>
       <div class="card">
         <div class="t">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          ${BRAND_ICON}
           <div>RTL Anywhere is ready<small>Any text, any site, one shortcut.</small></div>
         </div>
         <div class="card-list">
@@ -1458,7 +1418,7 @@
   setFlushHandler((el) => {
     applySiteRules(el);
     autoScan(el);
-  }, refreshLatinPrefix);
+  }, refreshDirection);
   var undoAllAndClear = () => {
     undoAll();
     clearHover();

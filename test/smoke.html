@@ -113,6 +113,18 @@
           "onboarding: first-run card renders",
           !!onboardCard && onboardText.includes("RTL Anywhere is ready"),
         );
+        const onboardLogo = onboardCard?.querySelector(".t > svg");
+        check(
+          "onboarding: supplied icon replaces the old logo",
+          onboardLogo?.getAttribute("aria-hidden") === "true" &&
+            onboardLogo.querySelectorAll("path").length === 2 &&
+            onboardLogo
+              .querySelector("path")
+              ?.getAttribute("d")
+              ?.startsWith("M11 3H13") &&
+            getComputedStyle(onboardLogo).stroke ===
+              getComputedStyle(onboardLogo).color,
+        );
         check(
           "onboarding: first-run card shows shortcuts",
           hasShortcut(onboardText, "Alt+R", "⌥R") &&
@@ -270,6 +282,15 @@
             ? [...panel.querySelectorAll(".tab")].map((b) => b.textContent)
             : [];
           check("settings panel rendered in a shadow root", !!panel);
+          const panelLogo = panel?.querySelector(".hdr .t > svg");
+          check(
+            "settings: supplied icon matches onboarding",
+            panelLogo?.getAttribute("aria-hidden") === "true" &&
+              panelLogo.querySelectorAll("path").length === 2 &&
+              panelLogo.innerHTML === onboardLogo?.innerHTML &&
+              getComputedStyle(panelLogo).stroke ===
+                getComputedStyle(panelLogo).color,
+          );
           check(
             "panel has Shortcuts / Auto / Sites tabs",
             JSON.stringify(tabs) ===

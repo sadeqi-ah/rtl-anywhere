@@ -1,5 +1,6 @@
 import { HOST } from "./env.ts";
 import { esc } from "./dom.ts";
+import { BRAND_ICON } from "./brand.ts";
 import { UI_CSS } from "./ui-css.ts";
 
 export type PanelTab = "keys" | "auto" | "sites";
@@ -10,7 +11,7 @@ export function panelMarkup(): string {
       <div class="panel">
         <div class="hdr">
           <div class="t" style="display:flex;align-items:center;gap:10px">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${BRAND_ICON}
             <div>RTL Anywhere<small>Configure behavior and shortcuts</small></div>
           </div>
           <button class="x" title="Close" aria-label="Close">

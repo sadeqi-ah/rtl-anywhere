@@ -121,6 +121,29 @@ try {
       );
     }
   }
+  await page.goto(`http://127.0.0.1:${address.port}/test/harness.html`);
+  await page.waitForTimeout(1100);
+  const harnessColon = await page.evaluate(() => {
+    const el = document.getElementById("latin-first-harness");
+    if (!el) return false;
+    const node = el.firstChild;
+    if (!node || node.nodeType !== Node.TEXT_NODE) return false;
+    const x = (character) => {
+      const i = node.textContent.indexOf(character);
+      const range = document.createRange();
+      range.setStart(node, i);
+      range.setEnd(node, i + 1);
+      return range.getBoundingClientRect().x;
+    };
+    return (
+      getComputedStyle(el).direction === "rtl" &&
+      x("G") > x(":") &&
+      x(":") > x("ا")
+    );
+  });
+  if (!harnessColon || errors.length)
+    throw new Error("Harness: GitHub colon must appear left of GitHub");
+  console.log("PASS harness: GitHub colon appears left of GitHub");
 } finally {
   await page.close();
   await browser.close();

@@ -9,16 +9,8 @@ export function initStyles(root: Document | ShadowRoot = document): void {
   styled.add(root);
   const css = `
     .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
-    /* Unordered markers stay on the right without forcing LTR-led text to RTL. */
-    ul.${RTL_CLASS}, ul:has(> li.${RTL_CLASS}) { padding-inline-start: 0 !important; }
-    ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} {
-      display: block !important; list-style: none !important; position: relative !important;
-      padding-right: 1.25em !important; text-align: right !important;
-    }
-    ul.${RTL_CLASS} > li::before, ul > li.${RTL_CLASS}::before {
-      content: "•"; position: absolute; right: 0; top: 0; width: 1em;
-      text-align: center; direction: ltr; unicode-bidi: isolate;
-    }
+    /* Keep each list's native marker while placing it on the RTL side. */
+    ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} { list-style-position: inside !important; }
     /* Code and math inside an RTL block always stay LTR. */
     .${RTL_CLASS} :is(${PROTECTED}), .${RTL_CLASS} :is(${PROTECTED}) * {
       direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important;

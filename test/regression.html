@@ -93,16 +93,16 @@
           await wait(1100);
           const latin = document.getElementById("latin-first");
           check(
-            "Latin-first Persian answer keeps the prefix on the right, colon after it",
+            "RTL Latin-first answer places colon left of GitHub",
             getComputedStyle(latin).textAlign === "right" &&
-              charX(latin, "G") > charX(latin, "ا") &&
-              charX(latin, ":") > charX(latin, "G"),
+              charX(latin, "G") > charX(latin, ":") &&
+              charX(latin, ":") > charX(latin, "ا"),
           );
-          const stablePrefix = latin.querySelector('span[dir="ltr"]');
+          const originalNodes = [...latin.childNodes];
           await wait(600);
           check(
-            "isolation does not repeatedly rewrite unchanged DOM",
-            latin.querySelector('span[dir="ltr"]') === stablePrefix,
+            "RTL styling does not rewrite unchanged DOM",
+            originalNodes.every((node, i) => latin.childNodes[i] === node),
           );
           check(
             "short Persian answer is detected",
@@ -110,9 +110,9 @@
           );
           const linked = document.getElementById("linked-first");
           check(
-            "linked Latin prefix keeps punctuation with the link",
-            charX(linked, ":") > charX(linked, "G") &&
-              charX(linked, "G") > charX(linked, "ا"),
+            "linked Latin prefix places punctuation left of the link",
+            charX(linked, "G") > charX(linked, ":") &&
+              charX(linked, ":") > charX(linked, "ا"),
           );
           const latinItem = document.getElementById("latin-li");
           const persianItem = document.getElementById("persian-li");
@@ -128,6 +128,12 @@
           );
           check("Persian list keeps RTL direction", dir(persianItem) === "rtl");
           check(
+            "unordered list keeps native bullet instead of tiny pseudo glyph",
+            getComputedStyle(latinItem).display === "list-item" &&
+              getComputedStyle(latinItem).listStyleType === "disc" &&
+              getComputedStyle(latinItem, "::before").content === "none",
+          );
+          check(
             "numbered list preserves its native marker",
             getComputedStyle(numberedItem, "::marker").content !== "none",
           );
@@ -135,9 +141,9 @@
           latinChanging.firstChild.textContent = "GitHub: متن تازه فارسی است.";
           await wait(600);
           check(
-            "Latin-first text remains isolated after dynamic edits",
-            charX(latinChanging, ":") > charX(latinChanging, "G") &&
-              charX(latinChanging, "G") > charX(latinChanging, "م"),
+            "Latin-first punctuation stays left after dynamic edits",
+            charX(latinChanging, "G") > charX(latinChanging, ":") &&
+              charX(latinChanging, ":") > charX(latinChanging, "م"),
           );
           const changing = document.getElementById("change");
           changing.textContent = "English text replaces all the Persian text.";

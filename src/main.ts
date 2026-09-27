@@ -4,7 +4,7 @@ import { onMenu } from "./gm.ts";
 import { initStyles } from "./styles.ts";
 import { matches } from "./keys.ts";
 import { shortcuts, isRecording } from "./shortcuts.ts";
-import { action, undoAll, refreshLatinPrefix } from "./core.ts";
+import { action, undoAll, refreshDirection } from "./core.ts";
 import {
   stopPick,
   togglePick,
@@ -28,7 +28,7 @@ trackMouse();
 setFlushHandler((el) => {
   applySiteRules(el);
   autoScan(el);
-}, refreshLatinPrefix);
+}, refreshDirection);
 
 // Undoing can remove the element pick mode is highlighting.
 const undoAllAndClear = () => {

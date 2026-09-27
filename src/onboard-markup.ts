@@ -1,3 +1,4 @@
+import { BRAND_ICON } from "./brand.ts";
 import { esc } from "./dom.ts";
 import { formatCombo } from "./keys.ts";
 import { shortcuts } from "./shortcuts.ts";
@@ -10,7 +11,7 @@ export function onboardMarkup(): string {
       <style>${UI_CSS}</style>
       <div class="card">
         <div class="t">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/><path d="M9 15L15 9M15 9H11M15 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          ${BRAND_ICON}
           <div>RTL Anywhere is ready<small>Any text, any site, one shortcut.</small></div>
         </div>
         <div class="card-list">

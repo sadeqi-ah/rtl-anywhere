@@ -1,27 +1,16 @@
 # RTL Anywhere
 
-Make any piece of text on any website right-to-left — with one shortcut.
+Right-align text on a website without flipping the entire page. RTL Anywhere is a userscript for reading Persian, Arabic, Hebrew, and mixed-direction text. Toggle a paragraph or selection, remember an element on a site, or enable conservative auto-detection.
 
-RTL Anywhere is a small Tampermonkey/Violentmonkey userscript for mixed-direction reading and writing. It is built for moments where one paragraph, one comment, one editor field, or one page section should become RTL without changing the whole website.
-
-![demo](assets/demo.gif)
+![RTL Anywhere demo](assets/demo.gif)
 
 ## Install
 
-1. Install [Tampermonkey](https://www.tampermonkey.net/) or Violentmonkey.
-2. Click **[Install RTL Anywhere](https://raw.githubusercontent.com/sadeqi-ah/rtl-anywhere/main/rtl-anywhere.user.js)**.
-3. Confirm the userscript manager prompt.
+1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/).
+2. **[Install RTL Anywhere](https://raw.githubusercontent.com/sadeqi-ah/rtl-anywhere/main/rtl-anywhere.user.js)** and confirm the manager's prompt.
+3. Hover a paragraph and press `Alt+R` (`⌥R` on macOS). Press it again to revert.
 
-To update later, use your userscript manager's update action, or reinstall from the same link.
-
-## Quick start
-
-- Hover an element and press `Alt+R` / `⌥R` to toggle it RTL.
-- Select text and press `Alt+R` / `⌥R` to RTL only that selected text.
-- Press `Alt+Shift+R` / `⌥⇧R` for pick mode when you want precise visual selection.
-- Press `Alt+Shift+Z` / `⌥⇧Z` to undo all changes on the current page.
-
-Pressing the toggle shortcut again on an RTL element reverts it.
+Update through your userscript manager after a new version is published. The install link, update URL, and icon URL currently target `sadeqi-ah/rtl-anywhere`.
 
 ## Usage
 
@@ -49,7 +38,6 @@ All three main actions are also available from the Tampermonkey menu, next to **
 - Precise pick mode with parent/child depth control
 - Per-site remembered selectors with `⇧`+click
 - Optional auto-detect for Persian, Arabic, and Hebrew text
-- Optional custom font for RTL text
 - Customizable shortcuts
 - DevTools-style overlay that is not clipped by `overflow: hidden`
 - Code, `pre`, math, editors, icon fonts, emoji, and SVG are protected from accidental styling
@@ -58,43 +46,25 @@ All three main actions are also available from the Tampermonkey menu, next to **
 
 ## Auto-detect
 
-Auto-detect right-aligns paragraphs when at least 60% of their letters are RTL **or** their first letter is RTL. Even short Persian replies are included. RTL paragraphs use an RTL base direction; a leading Latin prefix is isolated LTR so punctuation such as `GitHub:` stays with the prefix while the paragraph starts on the right.
+Auto-detect applies RTL when at least 60% of an element's letters are RTL **or** its first letter is RTL. Short Persian replies are included. A mixed sentence beginning with `GitHub:` still uses an RTL base when it contains Persian text.
 
-It is intentionally conservative:
-
-- Off by default
-- Can be enabled globally or only for the current site
-- Leaves pages alone when they already render RTL
-- Skips code, math, editors, and protected regions
-- Re-applies to content loaded later through the page observer
+Auto-detect is off by default. Enable it globally or for the current site under **Settings → Auto**. It leaves already-RTL content alone, skips editors and protected code/math, and processes content added later.
 
 ## Settings
 
-Tampermonkey menu → **Settings…**
-
-![settings](assets/settings.png)
+Open **Settings…** from the userscript manager's menu.
 
 | Tab           | What's in it                                                            |
 | ------------- | ----------------------------------------------------------------------- |
-| **Font**      | Font search / free-text entry and "Load system fonts"                   |
 | **Shortcuts** | Rebind any of the three shortcuts, or reset to defaults                 |
 | **Auto**      | Auto-detect globally or only on the current site                        |
 | **Sites**     | Selectors remembered for the current hostname, and **Forget this site** |
 
-> **Font list:** "Load system fonts" uses the Local Font Access API in supported Chromium browsers. It requires an HTTPS page and a user gesture. On unsupported browsers, type the font name manually.
-
 ## What is saved
 
-Everything is stored locally through Tampermonkey's own storage (`GM_setValue`):
+Settings are stored locally through the userscript manager (`GM_setValue`): shortcut bindings, the global auto-detect flag, hostnames with site auto-detect enabled, remembered selectors grouped by hostname, and whether onboarding has been dismissed. Page text, selected text, URLs, and browsing history are not saved.
 
-- selected RTL font
-- cached system font names
-- shortcut bindings
-- global auto-detect setting
-- per-site auto-detect setting
-- per-site selectors remembered with `⇧`+click
-
-One-off toggles are **not** saved. Reloading a page restores the site's original layout unless auto-detect is on or an element matches a remembered selector for that site.
+One-off toggles are **not** saved. Reloading a page restores its original layout unless auto-detect is on or an element matches a remembered selector for that site.
 
 ## Development
 
@@ -160,7 +130,6 @@ The harness shims the Tampermonkey APIs and includes local scenarios for:
 - overflow clipping checks
 - contenteditable fallback behavior
 - settings panel states
-- font permission mocks
 - onboarding replay
 - light/dark theme checks
 
@@ -216,21 +185,16 @@ Before changing permissions, storage, or page integration behavior, review [SECU
 
 The userscript asks for broad access because the feature is broad: it needs to be ready on whatever page you decide to toggle.
 
-| Grant                         | Why                                                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `@match *://*/*`              | "Anywhere" is the feature — the script must be available on any page where you press the shortcut       |
-| `unsafeWindow`                | Only to call `queryLocalFonts()` on the real page window; it fails through the userscript sandbox proxy |
-| `GM_getValue` / `GM_setValue` | Store settings locally in the userscript manager                                                        |
-| `GM_addStyle`                 | Inject the RTL typography and UI styles                                                                 |
-| `GM_registerMenuCommand`      | Add Pick mode, Undo, and Settings actions to the userscript menu                                        |
+| Grant                         | Why                                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `@match *://*/*`              | "Anywhere" is the feature — the script must be available on any page where you press the shortcut |
+| `GM_getValue` / `GM_setValue` | Store settings locally in the userscript manager                                                  |
+| `GM_addStyle`                 | Inject the RTL typography and UI styles                                                           |
+| `GM_registerMenuCommand`      | Add Pick mode, Undo, and Settings actions to the userscript menu                                  |
 
 There is no `GM_xmlhttpRequest`, no `fetch`, no remote config, and no analytics.
 
 ## Troubleshooting
-
-### The font list does not load
-
-The Local Font Access API is browser- and context-dependent. Try opening Settings on an HTTPS page in Chrome/Edge/Brave. If permission is blocked, use the browser site settings to allow font access, or type the font name manually.
 
 ### A code block became RTL
 

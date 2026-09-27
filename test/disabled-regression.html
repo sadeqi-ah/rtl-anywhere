@@ -82,9 +82,9 @@
           );
           const original = latinManual.textContent;
           check(
-            "manual Latin-first paragraph is isolated without auto detection",
-            latinManual.querySelector('span[dir="ltr"]')?.textContent ===
-              "GitHub: " && getComputedStyle(latinManual).direction === "rtl",
+            "manual Latin-first paragraph has RTL base without extra wrapper",
+            !latinManual.querySelector('span[dir="ltr"]') &&
+              getComputedStyle(latinManual).direction === "rtl",
           );
           latinManual.dispatchEvent(
             new MouseEvent("mousemove", { bubbles: true }),
@@ -105,9 +105,9 @@
           manual.textContent = "GitHub: متن فارسی درون سایه است.";
           await wait(400);
           check(
-            "manual shadow paragraph updates Latin-first prefix",
-            manual.querySelector('span[dir="ltr"]')?.textContent ===
-              "GitHub: " && getComputedStyle(manual).direction === "rtl",
+            "manual shadow paragraph keeps RTL base without a prefix wrapper",
+            !manual.querySelector('span[dir="ltr"]') &&
+              getComputedStyle(manual).direction === "rtl",
           );
           manual.textContent = "English-only text after Persian.";
           await wait(400);
