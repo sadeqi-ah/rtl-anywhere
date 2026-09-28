@@ -10,7 +10,7 @@ Right-align text on a website without flipping the entire page. RTL Anywhere is 
 2. **[Install RTL Anywhere](https://raw.githubusercontent.com/sadeqi-ah/rtl-anywhere/main/rtl-anywhere.user.js)** and confirm the manager's prompt.
 3. Hover a paragraph and press `Alt+R` (`⌥R` on macOS). Press it again to revert.
 
-Update through your userscript manager after a new version is published. The install link, update URL, and icon URL currently target `sadeqi-ah/rtl-anywhere`.
+Updates are available through your userscript manager after a new version is published.
 
 ## Usage
 

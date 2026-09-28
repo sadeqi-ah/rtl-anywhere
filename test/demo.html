@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Reading in your own direction — RTL Anywhere demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Geist", "SF Pro Text", system-ui, sans-serif;
+        background: #0c0e11;
+        color: #e9ebe8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+      }
+      main {
+        display: grid;
+        align-content: center;
+        width: min(100% - 48px, 680px);
+        min-height: 100dvh;
+        margin: 0 auto;
+        padding: 32px 0;
+      }
+      .excerpt {
+        font-family:
+          "Vazirmatn", "Noto Sans Arabic", "Geeza Pro", system-ui, sans-serif;
+        font-size: 17px;
+        line-height: 2.1;
+        color: #cdd2cc;
+      }
+      .excerpt h2 {
+        margin: 0 0 12px;
+        color: #f0f2ec;
+        font-size: 25px;
+        font-weight: 600;
+        line-height: 1.8;
+      }
+      .excerpt p {
+        margin: 0 0 20px;
+      }
+      .excerpt ul {
+        margin: 0;
+        padding-inline-start: 1.5em;
+      }
+      .excerpt li {
+        padding-inline-start: 0.15em;
+      }
+      .excerpt li::marker {
+        color: #90b99b;
+      }
+      footer {
+        margin-top: 28px;
+        padding-top: 20px;
+        border-top: 1px solid #ffffff12;
+        color: #868f89;
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      footer kbd {
+        padding: 3px 6px;
+        border: 1px solid #ffffff24;
+        border-radius: 5px;
+        color: #cdd2cc;
+        font: inherit;
+      }
+      @media (max-width: 600px) {
+        main {
+          width: min(100% - 36px, 680px);
+        }
+        .excerpt {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <!-- No forced RTL or demo script: use the installed userscript to change this live. -->
+        <div class="excerpt" lang="fa">
+          <h2>خواندن، باید بی‌دردسر باشد.</h2>
+          <p>
+            وب برای همه نوشته شده، اما همیشه برای همه یک‌جور خوانده نمی‌شود.
+            وقتی متن فارسی در میان نام‌ها، لینک‌ها و عبارت‌های انگلیسی قرار
+            می‌گیرد، چیدمان صفحه می‌تواند تمرکز را به‌هم بزند.
+          </p>
+          <p>
+            GitHub: نسخه‌های تازهٔ پروژه آنجا منتشر می‌شوند؛ اما خواندن توضیحات
+            فارسی نباید به‌خاطر یک نام انگلیسی دشوار شود.
+          </p>
+          <ul>
+            <li>پیوندها و نام‌هایی مثل GitHub در متن فارسی خوانا می‌مانند.</li>
+            <li>
+              فهرست‌ها، نشانه‌ها و فاصله‌ها جای طبیعی خود را پیدا می‌کنند.
+            </li>
+          </ul>
+        </div>
+      </article>
+      <footer>
+        Hover over the article and press <kbd>Alt</kbd> + <kbd>R</kbd> to try
+        RTL Anywhere.
+      </footer>
+    </main>
+  </body>
+</html>
