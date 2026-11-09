@@ -16,6 +16,21 @@ import {
 import { auto, setAuto, setSiteAuto } from "./auto.ts";
 import { siteRules, allSites } from "./rules.ts";
 import { removeRule } from "./sites.ts";
+import {
+  FONTS,
+  isSafeFamily,
+  localId,
+  normalizeName,
+  remoteFamily,
+} from "./fonts.ts";
+import type { FontDef } from "./fonts.ts";
+import {
+  canQueryLocalFonts,
+  installedFamily,
+  loadLocalFonts,
+  localFamilies,
+} from "./font-detect.ts";
+import { fontId, setFont, isDownloaded } from "./font.ts";
 import { panelMarkup } from "./panel-markup.ts";
 import type { PanelTab } from "./panel-markup.ts";
 
@@ -57,7 +72,10 @@ export function openPanel(tab: PanelTab = "keys"): void {
   function showTab(name: PanelTab) {
     stopRecord();
     drawHover(null);
-    $$(".tab").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
+    $$(".tab").forEach((x) => {
+      x.classList.toggle("on", x.dataset.tab === name);
+      x.setAttribute("aria-selected", String(x.dataset.tab === name));
+    });
     $$(".sec").forEach((s) => s.classList.toggle("on", s.dataset.sec === name));
   }
   $$(".tab").forEach((t) =>
@@ -88,6 +106,171 @@ export function openPanel(tab: PanelTab = "keys"): void {
     renderKeys();
   });
   renderKeys();
+
+  const fontList = $(".fonts"),
+    fontMsg = $(".font-msg"),
+    fontSearch = $<HTMLInputElement>(".q"),
+    fontReset = $<HTMLButtonElement>(".font-reset"),
+    browseBtn = $<HTMLButtonElement>(".font-browse");
+  /** Rows of "my fonts" drawn at once. The browser only loads glyphs for rendered rows. */
+  const MY_FONTS_CAP = 50;
+  const catalogNames = new Set(
+    FONTS.flatMap((def) => def.families.map(normalizeName)),
+  );
+  let fonts: { def: FontDef; family: string | null }[] = [];
+  // Detection is a handful of measurements; redo it only when the font list changes.
+  const detect = () => {
+    fonts = FONTS.map((def) => ({ def, family: installedFamily(def) })).sort(
+      (a, b) => Number(!!b.family) - Number(!!a.family),
+    );
+  };
+  detect();
+
+  function addRow(
+    label: string,
+    sampleFamily: string | null,
+    placeholder: string,
+    selected: boolean,
+    dim: boolean,
+    onClick: () => void,
+    badge?: string,
+  ) {
+    const item = document.createElement("div");
+    item.className = "item" + (selected ? " on" : "");
+    item.style.opacity = dim ? "0.55" : "";
+    item.tabIndex = 0;
+    item.setAttribute("role", "option");
+    item.setAttribute("aria-selected", String(selected));
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = label;
+    if (badge) {
+      const tag = document.createElement("span");
+      tag.className = "badge";
+      tag.textContent = badge;
+      name.append(tag);
+    }
+    const sample = document.createElement("span");
+    sample.className = "sample";
+    if (sampleFamily) {
+      sample.textContent = "سلام دنیا";
+      sample.style.fontFamily = `"${sampleFamily}"`;
+    } else sample.textContent = placeholder;
+    item.append(name, sample);
+    item.addEventListener("click", onClick);
+    item.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+      }
+    });
+    fontList.appendChild(item);
+  }
+
+  async function choose(id: string, label: string, pending: string) {
+    fontMsg.textContent = pending;
+    const status = await setFont(id);
+    fontMsg.textContent =
+      status === "unavailable"
+        ? `Couldn't load ${label}. Check your connection.`
+        : status === "assumed"
+          ? `Using ${label}. If the text looks unchanged, it isn't installed; try "Browse my fonts".`
+          : `Using ${label} for RTL text.`;
+    renderFonts();
+  }
+
+  function renderFonts() {
+    const q = fontSearch.value.trim().toLowerCase();
+    fontList.replaceChildren();
+    for (const { def, family } of fonts) {
+      if (q && !def.name.toLowerCase().includes(q)) continue;
+      const downloaded = isDownloaded(def);
+      const ready = !!family || downloaded;
+      addRow(
+        def.name,
+        family ?? (downloaded ? remoteFamily(def) : null),
+        def.remote ? "downloads on use" : "not detected",
+        def.id === fontId,
+        !family && !def.remote,
+        () =>
+          void choose(
+            def.id,
+            def.name,
+            ready || !def.remote ? "" : `Downloading ${def.name}…`,
+          ),
+        def.kind === "commercial" ? "Commercial" : undefined,
+      );
+    }
+    // The user's own fonts, once they allowed access. Search covers all of them; only a
+    // capped number of rows is drawn.
+    const mine = localFamilies().filter(
+      (name) =>
+        !catalogNames.has(normalizeName(name)) &&
+        isSafeFamily(name) &&
+        (!q || name.toLowerCase().includes(q)),
+    );
+    for (const name of mine.slice(0, MY_FONTS_CAP))
+      addRow(
+        name,
+        name,
+        "",
+        localId(name) === fontId,
+        false,
+        () => void choose(localId(name), name, ""),
+      );
+    if (mine.length > MY_FONTS_CAP) {
+      const more = document.createElement("div");
+      more.className = "empty";
+      more.textContent = `Showing ${MY_FONTS_CAP} of ${mine.length} of your fonts. Type to narrow down.`;
+      fontList.appendChild(more);
+    }
+    // Anything typed can be used as a font name, for fonts the lists don't know about.
+    const typed = fontSearch.value.trim();
+    if (typed && isSafeFamily(typed))
+      addRow(
+        `Use "${typed}"`,
+        typed,
+        "",
+        localId(typed) === fontId,
+        false,
+        () => void choose(localId(typed), typed, ""),
+      );
+    if (!fontList.children.length) {
+      const e = document.createElement("div");
+      e.className = "empty";
+      e.textContent = "No matching fonts.";
+      fontList.appendChild(e);
+    }
+    fontReset.disabled = !fontId;
+  }
+  fontSearch.addEventListener("input", renderFonts);
+  fontReset.addEventListener("click", () => {
+    void setFont("");
+    fontMsg.textContent = "Using the page's own font.";
+    renderFonts();
+  });
+
+  if (canQueryLocalFonts()) {
+    browseBtn.addEventListener("click", async () => {
+      browseBtn.disabled = true;
+      fontMsg.textContent = "Waiting for permission…";
+      const ok = await loadLocalFonts();
+      browseBtn.disabled = false;
+      if (!ok) {
+        fontMsg.textContent =
+          "Couldn't read your fonts. Allow access, or type a font name above.";
+        return;
+      }
+      detect();
+      fontMsg.textContent = `${localFamilies().length} fonts found on this device.`;
+      browseBtn.textContent = "Refresh";
+      renderFonts();
+    });
+  } else browseBtn.hidden = true; // Firefox and Safari don't offer the API
+
+  fontMsg.textContent =
+    "Open-source fonts download on first use. Commercial fonts must be installed. Type any font name to use it.";
+  renderFonts();
 
   const autoGlobal = $<HTMLInputElement>(".auto-global"),
     autoSite = $<HTMLInputElement>(".auto-site"),

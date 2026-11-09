@@ -24,6 +24,7 @@ export const K = {
   autoSites: "auto-detect-sites",
   sites: "site-rules",
   onboarded: "onboarded",
+  font: "font",
 } as const;
 
 export const Z = 2147483647;

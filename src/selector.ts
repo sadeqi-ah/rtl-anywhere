@@ -5,7 +5,11 @@
 export const stableClass = (c: string): boolean =>
   !!c &&
   c.length < 32 &&
-  !/\d/.test(c) &&
+  // Digits are fine in utility names (col-md-6, h2-title), not in hashes (css-1x2y3z).
+  !c
+    .split(/[-_]/)
+    .some((seg) => seg.length >= 5 && /\d/.test(seg) && /\D/.test(seg)) &&
+  !/\d{3,}/.test(c) &&
   !c.startsWith("tm-rtl") &&
   !/^(is|has|js)-|--|active|hover|focus|selected|open/i.test(c);
 

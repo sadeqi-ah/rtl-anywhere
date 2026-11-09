@@ -3,12 +3,12 @@ import { esc } from "./dom.ts";
 import { BRAND_ICON } from "./brand.ts";
 import { UI_CSS } from "./ui-css.ts";
 
-export type PanelTab = "keys" | "auto" | "sites";
+export type PanelTab = "keys" | "font" | "auto" | "sites";
 
 export function panelMarkup(): string {
   return `
       <style>${UI_CSS}</style>
-      <div class="panel">
+      <div class="panel" role="dialog" aria-label="RTL Anywhere settings">
         <div class="hdr">
           <div class="t" style="display:flex;align-items:center;gap:10px">
             ${BRAND_ICON}
@@ -20,10 +20,11 @@ export function panelMarkup(): string {
             </svg>
           </button>
         </div>
-        <div class="tabs">
-          <button class="tab" data-tab="keys">Shortcuts</button>
-          <button class="tab" data-tab="auto">Auto</button>
-          <button class="tab" data-tab="sites">Sites</button>
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" data-tab="keys">Shortcuts</button>
+          <button class="tab" role="tab" data-tab="font">Font</button>
+          <button class="tab" role="tab" data-tab="auto">Auto</button>
+          <button class="tab" role="tab" data-tab="sites">Sites</button>
         </div>
 
         <div class="sec" data-sec="keys">
@@ -33,6 +34,18 @@ export function panelMarkup(): string {
           <div class="row"><div><b>In pick mode</b><small>↑ / ↓ or ⌥ + wheel: parent / child · Esc: exit</small></div><span class="kbd fixed">↑ ↓ Esc</span></div>
           <div class="hint"></div>
           <div class="ftr"><span class="msg">Click a shortcut to change it. Saved globally.</span><button class="btn reset">Reset</button></div>
+        </div>
+
+        <div class="sec" data-sec="font">
+          <div class="font-bar">
+            <div class="q-wrap">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+              <input class="q" type="search" placeholder="Search or type a font name" aria-label="Search or type a font name" autocomplete="off" spellcheck="false">
+            </div>
+            <button class="btn set font-browse" title="List the fonts installed on this device">My fonts</button>
+          </div>
+          <div class="list fonts" role="listbox" aria-label="Fonts"></div>
+          <div class="ftr"><span class="msg font-msg"></span><button class="btn font-reset">Default</button></div>
         </div>
 
         <div class="sec" data-sec="auto">

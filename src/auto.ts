@@ -129,6 +129,12 @@ export function setAuto(on: boolean): void {
   applyAutoState();
 }
 
+/** Another tab changed the global switch: follow it without writing back (no echo loop). */
+export function syncAuto(on: boolean): void {
+  auto.global = on;
+  applyAutoState();
+}
+
 export function setSiteAuto(on: boolean): void {
   auto.site = on;
   const sites = getValue(K.autoSites, []).filter((host) => host !== HOST);

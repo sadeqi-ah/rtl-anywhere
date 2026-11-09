@@ -21,8 +21,13 @@ export const UI_CSS = `
     .sec.on { display: flex; }
     .q-wrap { position: relative; display: flex; flex-direction: column; margin: 0 16px 12px; }
     .q { position: relative; margin: 0; padding: 10px 16px 10px 38px; border: 1px solid #e5e7eb; border-radius: 9999px; font: inherit; outline: none; background: transparent; color: inherit; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; font-size: 13px; }
-    .q-wrap svg { position: absolute; left: 16px; top: 12px; fill: #9ca3af; pointer-events: none; z-index: 1; }
+    .q-wrap svg { position: absolute; left: 16px; top: 12px; color: #9ca3af; pointer-events: none; z-index: 1; }
     .q:focus { border-color: #d1d5db; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    .font-bar { display: flex; align-items: flex-start; gap: 8px; margin: 0 16px 12px; }
+    .font-bar .q-wrap { flex: 1; min-width: 0; margin: 0; }
+    .font-bar .btn { margin-top: 1px; padding: 9px 14px; border-radius: 9999px; }
+    .badge { margin-left: 8px; padding: 1px 7px; border-radius: 9999px; background: #f3f4f6; color: #6b7280; font-size: 10px; font-weight: 500; }
+    :is(.tab, .kbd, .btn, .item, .x, .q):focus-visible, .sw input:focus-visible + i { outline: 2px solid #2563eb; outline-offset: 1px; }
     .list { overflow-y: auto; padding: 0 4px; flex: 1; min-height: 110px; border-bottom: 1px solid transparent; margin: 0; }
     .item { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin: 0; }
     .item:hover { background: #f3f4f6; }
@@ -74,17 +79,18 @@ export const UI_CSS = `
     .card-actions .ok { background: #f3f4f6; border-color: transparent; color: #111827; box-shadow: none; }
     .card-actions .ok:hover { background: #e5e7eb; border-color: transparent; color: #111827; }
     @media (prefers-color-scheme: dark) {
-      .panel, .card { background: rgba(22, 22, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #ffffff; box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,0.1); }
+      .panel, .card { background: rgba(22, 22, 22, 0.96); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #ffffff; box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,0.1); }
       .sample, .ftr, .x, .row small, .muted, .tab, .hdr .t small, .card .t small, .card-row small { color: #888888; }
       .x { color: #888888; } .x:hover { background: rgba(255,255,255,0.06); color: #ffffff; }
       .tabs { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 3.5px; box-shadow: inset 0 1px 2px rgba(0,0,0,.2); }
       .tab:hover:not(.on) { color: #cccccc; }
       .tab.on { background: rgba(255,255,255,0.08); color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,.2), 0 0 0 1px rgba(255,255,255,0.04); }
       .q { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1); } .q:focus { background: transparent; border-color: rgba(255,255,255,0.3); box-shadow: 0 0 0 3px rgba(255,255,255,0.05); }
-      .q-wrap svg { fill: #6b7280; }
+      .q-wrap svg { color: #6b7280; }
       .item:hover, .rule:hover { background: rgba(255,255,255,0.06); } .item.on { background: rgba(255,255,255,0.1); } .item.on .sample { color: #ffffff; }
       .item.on .name::before { border-color: #ffffff; left: 14px; }
       .name { color: #ffffff; }
+      .badge { background: rgba(255,255,255,0.08); color: #a0a0a0; }
       .sample { color: #888888; }
       .ftr, .row + .row, .q-wrap + .row { border-top: 1px solid rgba(255,255,255,0.06); }
       .card-list, .card-row + .card-row { border-color: rgba(255,255,255,0.06); }

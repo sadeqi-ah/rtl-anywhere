@@ -292,10 +292,24 @@
                 getComputedStyle(panelLogo).color,
           );
           check(
-            "panel has Shortcuts / Auto / Sites tabs",
+            "panel has Shortcuts / Font / Auto / Sites tabs",
             JSON.stringify(tabs) ===
-              JSON.stringify(["Shortcuts", "Auto", "Sites"]),
+              JSON.stringify(["Shortcuts", "Font", "Auto", "Sites"]),
           );
+
+          panel.querySelector('[data-tab="font"]').click();
+          check(
+            "font tab lists catalog; search narrows it and offers the typed name",
+            panel.querySelectorAll(".fonts .item").length > 50 &&
+              (() => {
+                const q = panel.querySelector(".q");
+                q.value = "zzzz-none";
+                q.dispatchEvent(new Event("input"));
+                return panel.querySelectorAll(".fonts .item").length === 1;
+              })(),
+          );
+          panel.querySelector(".q").value = "";
+          panel.querySelector(".q").dispatchEvent(new Event("input"));
 
           const autoTab = panel.querySelector('[data-tab="auto"]');
           autoTab.click();

@@ -1,0 +1,31 @@
+# Dependencies and lockfile (large, no useful signal)
+node_modules/
+pnpm-lock.yaml
+
+# Generated bundle: built from src/ by build.mjs (65 KB). Edit src/ instead.
+rtl-anywhere.user.js
+
+# Binary assets
+assets/
+*.gif
+*.png
+
+# OS / editor / tool noise
+.DS_Store
+.hermes/
+.git/
+graphify-out/
+
+# Repo boilerplate
+LICENSE
+.github/ISSUE_TEMPLATE/
+.github/PULL_REQUEST_TEMPLATE.md
+.github/dependabot.yml
+
+# Large HTML test fixtures (read only when working on browser tests)
+test/demo.html
+test/smoke.html
+test/regression.html
+test/harness.html
+test/idle-regression.html
+test/disabled-regression.html

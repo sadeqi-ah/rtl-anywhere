@@ -8,7 +8,11 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
+// @grant        GM_addValueChangeListener
+// @grant        GM_xmlhttpRequest
+// @connect      cdn.jsdelivr.net
 // @run-at       document-idle
+// @noframes
 // @author       sadeqi-ah
 // @license      MIT
 // @homepageURL  https://github.com/sadeqi-ah/rtl-anywhere

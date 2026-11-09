@@ -9,6 +9,8 @@ export function initStyles(root: Document | ShadowRoot = document): void {
   styled.add(root);
   const css = `
     .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
+    /* Set only when the user picked an installed font; the fallback keeps the page font. */
+    .${RTL_CLASS} { font-family: var(--tm-rtl-font, inherit) !important; }
     /* Keep each list's native marker while placing it on the RTL side. */
     ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} { list-style-position: inside !important; }
     /* Code and math inside an RTL block always stay LTR. */

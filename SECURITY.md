@@ -18,7 +18,7 @@ Before merging a change, check:
 - [ ] `pnpm run check:bundle` passes.
 - [ ] The committed `rtl-anywhere.user.js` matches `src/`.
 - [ ] `pnpm run test:security` passes.
-- [ ] No new network API usage was added.
+- [ ] No new network API usage was added. The only reviewed one is the open-source font download (`GM_xmlhttpRequest`, `@connect cdn.jsdelivr.net`, pinned URLs with SHA-256 in `src/fonts.ts`).
 - [ ] No new userscript grants were added without updating README and this checklist.
 - [ ] Storage schema changes are typed in `src/gm.ts`.
 - [ ] New protected-site behavior is covered by logic tests, smoke tests, or the harness.
@@ -44,6 +44,8 @@ sendBeacon
 
 Documentation references in `README.md` and `SECURITY.md` are allowed.
 
+One reviewed exception: `GM_xmlhttpRequest` may appear in `src/gm.ts`, `src/types/globals.d.ts` and `meta/header.txt`, for the optional open-source font download. The scan also fails if `@connect` lists any host other than `cdn.jsdelivr.net`. Font files are pinned to an exact version and rejected unless their SHA-256 matches `src/fonts.ts`.
+
 ## Suggested local scans
 
 GitHub code search should return only documentation references for these terms:
@@ -62,4 +64,4 @@ For a manual local check, run:
 rg "fetch|XMLHttpRequest|GM_xmlhttpRequest|WebSocket|sendBeacon" src test meta README.md SECURITY.md
 ```
 
-Expected result: no executable network usage in `src/`.
+Expected result: no executable network usage in `src/` other than the reviewed font download in `src/gm.ts`.

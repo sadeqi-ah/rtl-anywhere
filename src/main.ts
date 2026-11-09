@@ -1,9 +1,9 @@
 // Entry point: wires the modules together — menu commands, the global key handler,
 // and the initial scan. Everything else is a module under src/.
-import { onMenu } from "./gm.ts";
+import { onMenu, onValueChange } from "./gm.ts";
 import { initStyles } from "./styles.ts";
 import { matches } from "./keys.ts";
-import { shortcuts, isRecording } from "./shortcuts.ts";
+import { shortcuts, isRecording, reloadShortcuts } from "./shortcuts.ts";
 import { action, undoAll, refreshDirection } from "./core.ts";
 import {
   stopPick,
@@ -15,13 +15,16 @@ import {
 } from "./pick.ts";
 import { applySiteRules } from "./sites.ts";
 import { siteRules } from "./rules.ts";
-import { auto, autoScan } from "./auto.ts";
+import { auto, autoScan, syncAuto } from "./auto.ts";
 import { ensureObserver, setFlushHandler } from "./observer.ts";
 import { openPanel, closePanel, panelOpen } from "./panel.ts";
 import { maybeOnboard, dismissOnboard } from "./onboard.ts";
 import { flags } from "./state.ts";
+import { K } from "./constants.ts";
+import { applyFont, syncFont } from "./font.ts";
 
 initStyles();
+void applyFont();
 trackMouse();
 
 // New/changed content: re-apply site rules, then auto-detect.
@@ -35,6 +38,10 @@ const undoAllAndClear = () => {
   undoAll();
   clearHover();
 };
+
+onValueChange(K.auto, (v) => syncAuto(v === true));
+onValueChange(K.sc, reloadShortcuts);
+onValueChange(K.font, syncFont);
 
 onMenu("Pick mode", togglePick);
 onMenu("Undo all on this page", undoAllAndClear);

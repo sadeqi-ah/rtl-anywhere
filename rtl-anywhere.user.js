@@ -1,14 +1,18 @@
 // ==UserScript==
 // @name         RTL Anywhere
 // @namespace    rtl-anywhere
-// @version      1.0.0
+// @version      1.1.0
 // @description  Any text, any site, one shortcut. Alt+R toggles RTL on the selection or hovered element, Alt+Shift+R opens pick mode, Alt+Shift+Z undoes everything. Auto-detect, per-site memory & shortcuts.
 // @match        *://*/*
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
+// @grant        GM_addValueChangeListener
+// @grant        GM_xmlhttpRequest
+// @connect      cdn.jsdelivr.net
 // @run-at       document-idle
+// @noframes
 // @author       sadeqi-ah
 // @license      MIT
 // @homepageURL  https://github.com/sadeqi-ah/rtl-anywhere
@@ -30,7 +34,8 @@
     auto: "auto-detect",
     autoSites: "auto-detect-sites",
     sites: "site-rules",
-    onboarded: "onboarded"
+    onboarded: "onboarded",
+    font: "font"
   };
   var Z = 2147483647;
   var UI_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -97,8 +102,27 @@
   var BEAM_SECS = 1.96;
 
   // src/gm.ts
-  var getValue = (key, fallback) => GM_getValue(key, fallback);
+  var isStringArray = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
+  var isPlainObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+  var valid = {
+    [K.sc]: isPlainObject,
+    [K.auto]: (v) => typeof v === "boolean",
+    [K.autoSites]: isStringArray,
+    [K.sites]: (v) => isPlainObject(v) && Object.values(v).every(isStringArray),
+    [K.onboarded]: (v) => typeof v === "boolean",
+    [K.font]: (v) => typeof v === "string"
+  };
+  var getValue = (key, fallback) => {
+    const v = GM_getValue(key, fallback);
+    return valid[key](v) ? v : fallback;
+  };
   var setValue = (key, value) => GM_setValue(key, value);
+  var onValueChange = (key, fn) => {
+    if (typeof GM_addValueChangeListener !== "function") return;
+    GM_addValueChangeListener(key, (_k, _old, value, remote) => {
+      if (remote) fn(value);
+    });
+  };
   var onMenu = (label, fn) => GM_registerMenuCommand(label, fn);
   function addStyle(css) {
     const el = GM_addStyle(css);
@@ -108,6 +132,19 @@
     (document.head ?? document.documentElement).appendChild(s);
     return s;
   }
+  var fetchBytes = (url) => new Promise((resolve, reject) => {
+    if (typeof GM_xmlhttpRequest !== "function")
+      return reject(new Error("GM_xmlhttpRequest unavailable"));
+    GM_xmlhttpRequest({
+      method: "GET",
+      url,
+      responseType: "arraybuffer",
+      timeout: 15e3,
+      onload: (r) => r.status === 200 ? resolve(r.response) : reject(new Error(`HTTP ${r.status}`)),
+      onerror: () => reject(new Error("network error")),
+      ontimeout: () => reject(new Error("timeout"))
+    });
+  });
 
   // src/styles.ts
   var styled = /* @__PURE__ */ new WeakSet();
@@ -116,6 +153,8 @@
     styled.add(root);
     const css = `
     .${RTL_CLASS} { text-align: right !important; unicode-bidi: isolate !important; }
+    /* Set only when the user picked an installed font; the fallback keeps the page font. */
+    .${RTL_CLASS} { font-family: var(--tm-rtl-font, inherit) !important; }
     /* Keep each list's native marker while placing it on the RTL side. */
     ul.${RTL_CLASS} > li, ul > li.${RTL_CLASS} { list-style-position: inside !important; }
     /* Code and math inside an RTL block always stay LTR. */
@@ -220,6 +259,12 @@
   );
   var shortcuts = merge();
   var save = () => setValue(K.sc, shortcuts);
+  function reloadShortcuts() {
+    const next = getValue(K.sc, {});
+    shortcuts = Object.fromEntries(
+      SC_IDS.map((id) => [id, { ...DEFAULT_SC[id], ...next[id] }])
+    );
+  }
   function resetShortcuts() {
     shortcuts = Object.fromEntries(
       SC_IDS.map((id) => [id, { ...DEFAULT_SC[id] }])
@@ -351,83 +396,9 @@
     return nodes;
   }
 
-  // src/state.ts
-  var touched = /* @__PURE__ */ new Set();
-  var flags = {
-    /** Set by "Undo all": auto-detect and site rules stop re-applying until reload. */
-    paused: false,
-    /** Pick mode active. */
-    picking: false
-  };
-  function countRTL() {
-    let n = 0;
-    for (const e of touched)
-      if (e.isConnected && e.classList.contains(RTL_CLASS)) n++;
-    return n;
-  }
-
-  // src/observer.ts
-  var moTimer = 0;
-  var onFlush = null;
-  var onRefresh = null;
-  var observers = /* @__PURE__ */ new WeakMap();
-  var pending = /* @__PURE__ */ new Set();
-  var setFlushHandler = (fn, refresh) => {
-    onFlush = fn;
-    onRefresh = refresh ?? null;
-  };
-  function ensureObserver(root = document.body) {
-    if (!root || observers.has(root)) return;
-    const mo = new MutationObserver((muts) => {
-      for (const m of muts) {
-        if (m.type === "childList")
-          m.addedNodes.forEach((n) => {
-            if (n instanceof Element) {
-              pending.add(n);
-              observeShadows(n);
-            } else if (n.parentElement) pending.add(n.parentElement);
-          });
-        else if (m.target instanceof Element) pending.add(m.target);
-        else if (m.target.parentElement) pending.add(m.target.parentElement);
-      }
-      if (pending.size && !moTimer)
-        moTimer = window.setTimeout(flushPending, 250);
-    });
-    mo.observe(root, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["class", "id", "dir"]
-    });
-    observers.set(root, mo);
-    observeShadows(root);
-  }
-  function observeShadows(root) {
-    const elements = root instanceof Element ? [root, ...root.querySelectorAll("*")] : root.querySelectorAll("*");
-    for (const el of elements) {
-      if (!el.shadowRoot) continue;
-      initStyles(el.shadowRoot);
-      ensureObserver(el.shadowRoot);
-      for (const child of el.shadowRoot.children) pending.add(child);
-    }
-    if (pending.size && !moTimer) moTimer = window.setTimeout(flushPending, 250);
-  }
-  function flushPending() {
-    moTimer = 0;
-    const roots = [...pending];
-    pending.clear();
-    if (flags.paused || !onFlush) return;
-    for (const n of roots) {
-      if (!n.isConnected) continue;
-      const el = n.matches(AUTO_CANDIDATES) ? n : n.closest(AUTO_CANDIDATES) ?? n;
-      onRefresh?.(el);
-      onFlush(el);
-    }
-  }
-
   // src/selector.ts
-  var stableClass = (c) => !!c && c.length < 32 && !/\d/.test(c) && !c.startsWith("tm-rtl") && !/^(is|has|js)-|--|active|hover|focus|selected|open/i.test(c);
+  var stableClass = (c) => !!c && c.length < 32 && // Digits are fine in utility names (col-md-6, h2-title), not in hashes (css-1x2y3z).
+  !c.split(/[-_]/).some((seg) => seg.length >= 5 && /\d/.test(seg) && /\D/.test(seg)) && !/\d{3,}/.test(c) && !c.startsWith("tm-rtl") && !/^(is|has|js)-|--|active|hover|focus|selected|open/i.test(c);
   var stableId = (id) => !!id && !/\d{3,}/.test(id) && !/^[a-f0-9]{8,}$/i.test(id) && !id.startsWith(":");
   function cssPath(el) {
     const root = el.getRootNode();
@@ -516,6 +487,89 @@
       }
     }
     return null;
+  }
+
+  // src/state.ts
+  var touched = /* @__PURE__ */ new Set();
+  var flags = {
+    /** Set by "Undo all": auto-detect and site rules stop re-applying until reload. */
+    paused: false,
+    /** Pick mode active. */
+    picking: false
+  };
+  function countRTL() {
+    let n = 0;
+    for (const e of touched)
+      if (e.isConnected && e.classList.contains(RTL_CLASS)) n++;
+    return n;
+  }
+
+  // src/observer.ts
+  var moTimer = 0;
+  var onFlush = null;
+  var onRefresh = null;
+  var observers = /* @__PURE__ */ new WeakMap();
+  var pending = /* @__PURE__ */ new Set();
+  var active = /* @__PURE__ */ new Set();
+  var setFlushHandler = (fn, refresh) => {
+    onFlush = fn;
+    onRefresh = refresh ?? null;
+  };
+  function ensureObserver(root = document.body) {
+    if (!root || observers.has(root)) return;
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === "childList")
+          m.addedNodes.forEach((n) => {
+            if (n instanceof Element) {
+              pending.add(n);
+              observeShadows(n);
+            } else if (n.parentElement) pending.add(n.parentElement);
+          });
+        else if (m.type === "attributes") {
+          const t = m.target;
+          if (!(t instanceof Element)) continue;
+          if (m.attributeName === "dir" ? t.classList.contains(RTL_CLASS) : siteRules.length)
+            pending.add(t);
+        } else if (m.target instanceof Element) pending.add(m.target);
+        else if (m.target.parentElement) pending.add(m.target.parentElement);
+      }
+      if (pending.size && !moTimer)
+        moTimer = window.setTimeout(flushPending, 250);
+    });
+    mo.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["class", "id", "dir"]
+    });
+    observers.set(root, mo);
+    active.add(mo);
+    observeShadows(root);
+  }
+  function observeShadows(root) {
+    const elements = root instanceof Element ? [root, ...root.querySelectorAll("*")] : root.querySelectorAll("*");
+    for (const el of elements) {
+      if (!el.shadowRoot) continue;
+      initStyles(el.shadowRoot);
+      ensureObserver(el.shadowRoot);
+      for (const child of el.shadowRoot.children) pending.add(child);
+    }
+    if (pending.size && !moTimer) moTimer = window.setTimeout(flushPending, 250);
+  }
+  function flushPending() {
+    moTimer = 0;
+    const roots = [...pending];
+    pending.clear();
+    if (flags.paused || !onFlush) return;
+    for (const n of roots) {
+      if (!n.isConnected) continue;
+      const el = n.matches(AUTO_CANDIDATES) ? n : n.closest(AUTO_CANDIDATES) ?? n;
+      onRefresh?.(el);
+      onFlush(el);
+    }
+    for (const mo of active) mo.takeRecords();
   }
 
   // src/overlay-markup.ts
@@ -680,9 +734,10 @@
   }
 
   // src/core.ts
+  var sampleText = (el) => (el.textContent ?? "").slice(0, 2e3);
   function refreshDirection(el) {
     if (!el.classList.contains(RTL_CLASS)) return;
-    const dir = RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto";
+    const dir = RTL_CHAR.test(sampleText(el)) ? "rtl" : "auto";
     if (el.getAttribute("dir") !== dir) el.setAttribute("dir", dir);
   }
   function applyRTL(el, src = "manual", quiet = false) {
@@ -690,7 +745,7 @@
     if (root instanceof ShadowRoot) initStyles(root);
     if (!el.hasAttribute(PREV_DIR))
       el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-    el.setAttribute("dir", RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto");
+    el.setAttribute("dir", RTL_CHAR.test(sampleText(el)) ? "rtl" : "auto");
     ensureObserver();
     if (root instanceof ShadowRoot) ensureObserver(root);
     el.classList.add(RTL_CLASS);
@@ -744,7 +799,7 @@
     touched.clear();
     const n = els.length;
     hudSet(
-      n ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"}` : "Nothing to undo on this page",
+      n ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"} — auto paused until next toggle` : "Nothing to undo on this page",
       true
     );
   }
@@ -791,6 +846,7 @@
       toggleElement(ancEl);
   }
   function action(lastMouseTarget2) {
+    flags.paused = false;
     const a = document.activeElement;
     if ((a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement) && a.selectionStart !== a.selectionEnd) {
       toggleElement(a);
@@ -1064,12 +1120,281 @@
     setValue(K.auto, on);
     applyAutoState();
   }
+  function syncAuto(on) {
+    auto.global = on;
+    applyAutoState();
+  }
   function setSiteAuto(on) {
     auto.site = on;
     const sites = getValue(K.autoSites, []).filter((host2) => host2 !== HOST);
     if (on) sites.push(HOST);
     setValue(K.autoSites, sites);
     applyAutoState();
+  }
+
+  // src/fonts.ts
+  var f = (id, name, kind, ...families) => ({
+    id,
+    name,
+    kind,
+    families: families.length ? families : [name]
+  });
+  var os = (id, name, remote, ...families) => ({ ...f(id, name, "opensource", ...families), remote });
+  var CDN = "https://cdn.jsdelivr.net/";
+  var com = (id, name, ...families) => f(id, name, "commercial", ...families);
+  var FONTS = [
+    os(
+      "vazirmatn",
+      "Vazirmatn",
+      {
+        url: CDN + "npm/vazirmatn@33.0.3/fonts/webfonts/Vazirmatn%5Bwght%5D.woff2",
+        sha256: "4e3fa217d38fdafc1fea4414ceb58ca5e662cf0ab5fa735a8c8c20e8b42cad92",
+        weight: "100 900"
+      },
+      "Vazirmatn",
+      "Vazir"
+    ),
+    os(
+      "estedad",
+      "Estedad",
+      {
+        url: CDN + "npm/@fontsource-variable/estedad@5.3.0/files/estedad-arabic-wght-normal.woff2",
+        sha256: "e0efecd488020d6c82fe6fe11c9473d0b5c474c1adac739c6b6ff677a2d6cce1",
+        weight: "100 900"
+      },
+      "Estedad",
+      "Estedad VF"
+    ),
+    os(
+      "shabnam",
+      "Shabnam",
+      {
+        url: CDN + "gh/rastikerdar/shabnam-font@v5.0.1/dist/Shabnam.woff2",
+        sha256: "540d3f4e172bd6b5c70dd06bce57e055ce59270e95ea642b414fe0709faaa085"
+      },
+      "Shabnam",
+      "Shabnam FD"
+    ),
+    os(
+      "nahid",
+      "Nahid",
+      {
+        url: CDN + "gh/rastikerdar/nahid-font@v0.3.0/dist/Nahid.woff2",
+        sha256: "69c92b21aa4f4417253f1f825226952583a179e6e01f3355ad9384b0101640f4"
+      },
+      "Nahid"
+    ),
+    os(
+      "sahel",
+      "Sahel",
+      {
+        url: CDN + "gh/rastikerdar/sahel-font@v3.4.0/dist/Sahel.woff2",
+        sha256: "df74c625136d60e981abbd32cc75624007e5b36cc41cc5327dff190d22b21772"
+      },
+      "Sahel",
+      "Sahel VF"
+    ),
+    os(
+      "samim",
+      "Samim",
+      {
+        url: CDN + "gh/rastikerdar/samim-font@v4.0.5/dist/Samim.woff2",
+        sha256: "b45379592d11b2bb9135eb78cea8b54220d89b26d67fb19bae5d15a540d32556"
+      },
+      "Samim",
+      "Samim FD"
+    ),
+    com("iranyekanx", "IRANYekanX", "IRANYekanX", "IRANYekanX VF", "IRANYekan"),
+    com("iransansx", "IRANSansX", "IRANSansX", "IRANSansX VF", "IRANSans"),
+    com(
+      "iransansx-d4",
+      "IRANSansX D4",
+      "IRANSansX-D4",
+      "IRANSansX D4",
+      "IRANSansX"
+    ),
+    com("yekanbakh", "Yekan Bakh", "Yekan Bakh", "YekanBakh", "Yekan Bakh FaNum"),
+    com("dana", "Dana", "Dana", "Dana VF", "Dana FaNum"),
+    com("anjoman", "Anjoman", "Anjoman", "Anjoman VF"),
+    com("kalameh", "Kalameh", "Kalameh", "Kalameh VF"),
+    com("peyda", "Peyda", "Peyda", "Peyda VF"),
+    com("doran", "Doran", "Doran", "Doran VF"),
+    com("modam", "Modam", "Modam", "Modam VF"),
+    com("ravi", "Ravi", "Ravi", "Ravi VF"),
+    com("kahroba", "Kahroba", "Kahroba", "Kahroba VF"),
+    com("morabba", "Morabba", "Morabba", "Morabba VF"),
+    com("farhang", "Farhang", "Farhang", "Farhang VF"),
+    com("farhang-dot1", "Farhang Dot1", "Farhang Dot1", "FarhangDot1", "Farhang"),
+    com("borna", "Borna", "Borna", "Borna VF"),
+    com("pelak", "Pelak", "Pelak", "Pelak VF"),
+    com("sepid", "Sepid", "Sepid", "Sepid VF"),
+    com("ahang", "Ahang"),
+    com("tahrir", "Tahrir"),
+    com("tajrid", "Tajrid"),
+    com("vanda", "Vanda"),
+    com("rokh", "Rokh"),
+    com("paykan", "Paykan"),
+    com("dibaj", "Dibaj"),
+    com("aria", "Aria"),
+    com("noora", "Noora"),
+    com("samir", "Samir"),
+    com("kook", "Kook"),
+    com("ekraan", "Ekraan", "Ekraan", "Ekran"),
+    com("veno", "Veno"),
+    com("abar", "Abar", "Abar", "Abar VF"),
+    com("liana", "Liana"),
+    com("shoor", "Shoor"),
+    com("gozzar", "Gozzar"),
+    com("darvish", "Darvish"),
+    com("croissant", "Croissant"),
+    com("mahal", "Mahal"),
+    com("bavan", "Bavan"),
+    com("kamand", "Kamand"),
+    com("lahzeh", "Lahzeh"),
+    com("damoon", "Damoon"),
+    com("pofak", "Pofak"),
+    com("bon", "Bon"),
+    com("shazde", "Shazde"),
+    com("haiku", "Haiku"),
+    com("rooyin", "Rooyin"),
+    com("gramophone", "Gramophone"),
+    com("darbareh", "Darbareh"),
+    com("ravagh", "Ravagh"),
+    com("samarqand", "Samarqand"),
+    com("narengi", "Narengi"),
+    com("labkhand", "Labkhand"),
+    com("bonyan", "Bonyan"),
+    com("bonyadekoodak", "Bonyad Koodak", "Bonyad Koodak", "BonyadeKoodak"),
+    com("on", "On"),
+    com("quarantine", "Quarantine")
+  ];
+  var findFont = (id) => FONTS.find((font) => font.id === id);
+  var fontStack = (font) => font.families.map((name) => `'${name}'`).join(", ");
+  var remoteFamily = (font) => `tm-rtl-${font.id}`;
+  var LOCAL_PREFIX = "local:";
+  var SAFE_FAMILY = /^[^"'\\;{}<>\u0000-\u001f]{1,100}$/;
+  var isSafeFamily = (name) => SAFE_FAMILY.test(name);
+  var localId = (family) => LOCAL_PREFIX + family;
+  function parseLocalId(id) {
+    if (!id.startsWith(LOCAL_PREFIX)) return null;
+    const family = id.slice(LOCAL_PREFIX.length).trim();
+    return isSafeFamily(family) ? family : null;
+  }
+  var localStack = (family) => `"${family}", sans-serif`;
+  var normalizeName = (name) => name.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, "");
+
+  // src/font-detect.ts
+  var BASES = ["monospace", "serif", "sans-serif"];
+  var PROBE = "سلام دنیا گچپژ کیهان";
+  var cache = /* @__PURE__ */ new Map();
+  var ctx;
+  function width(font) {
+    if (ctx === void 0)
+      ctx = document.createElement("canvas").getContext("2d");
+    if (!ctx) return 0;
+    ctx.font = `72px ${font}`;
+    return ctx.measureText(PROBE).width;
+  }
+  var local = null;
+  var canQueryLocalFonts = () => typeof window.queryLocalFonts === "function";
+  var localFamilies = () => local?.families ?? [];
+  async function loadLocalFonts() {
+    if (!window.queryLocalFonts) return false;
+    try {
+      const fonts = await window.queryLocalFonts();
+      const names = /* @__PURE__ */ new Set();
+      const families = /* @__PURE__ */ new Map();
+      for (const font of fonts) {
+        names.add(normalizeName(font.family));
+        names.add(normalizeName(font.fullName));
+        const key = normalizeName(font.family);
+        if (!families.has(key)) families.set(key, font.family);
+      }
+      local = {
+        names,
+        families: [...families.values()].sort((a, b) => a.localeCompare(b))
+      };
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function familyInstalled(name) {
+    if (local) return local.names.has(normalizeName(name));
+    const hit = cache.get(name);
+    if (hit !== void 0) return hit;
+    const found = BASES.some(
+      (base) => width(`'${name}', ${base}`) !== width(base)
+    );
+    cache.set(name, found);
+    return found;
+  }
+  var installedFamily = (font) => font.families.find(familyInstalled) ?? null;
+
+  // src/font.ts
+  var VAR = "--tm-rtl-font";
+  var isKnownId = (id) => !!findFont(id) || parseLocalId(id) !== null;
+  var fontId = getValue(K.font, "");
+  var downloads = /* @__PURE__ */ new Map();
+  var hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  function download(font) {
+    const remote = font.remote;
+    if (!remote) return Promise.resolve(false);
+    let job = downloads.get(font.id);
+    if (!job) {
+      job = (async () => {
+        const bytes = await fetchBytes(remote.url);
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        if (hex(digest) !== remote.sha256) return false;
+        const face = new FontFace(remoteFamily(font), bytes, {
+          ...remote.weight ? { weight: remote.weight } : {},
+          display: "swap"
+        });
+        document.fonts.add(await face.load());
+        return true;
+      })().catch(() => false);
+      downloads.set(font.id, job);
+      void job.then((ok) => ok || downloads.delete(font.id));
+    }
+    return job;
+  }
+  var isDownloaded = (font) => [...document.fonts].some((face) => face.family === remoteFamily(font));
+  async function resolveFont(font) {
+    if (installedFamily(font))
+      return { status: "installed", stack: fontStack(font) };
+    if (await download(font))
+      return { status: "downloaded", stack: `'${remoteFamily(font)}'` };
+    if (font.kind === "commercial")
+      return { status: "assumed", stack: `${fontStack(font)}, sans-serif` };
+    return { status: "unavailable", stack: "" };
+  }
+  async function applyFont() {
+    const root = document.documentElement;
+    const requested = fontId;
+    const family = parseLocalId(requested);
+    const font = findFont(requested);
+    if (family) {
+      root.style.setProperty(VAR, localStack(family));
+      return "installed";
+    }
+    if (!font) {
+      root.style.removeProperty(VAR);
+      return null;
+    }
+    const { status, stack } = await resolveFont(font);
+    if (requested !== fontId) return null;
+    if (status === "unavailable") root.style.removeProperty(VAR);
+    else root.style.setProperty(VAR, stack);
+    return status;
+  }
+  function setFont(id) {
+    fontId = isKnownId(id) ? id : "";
+    setValue(K.font, fontId);
+    return applyFont();
+  }
+  function syncFont(id) {
+    fontId = typeof id === "string" && isKnownId(id) ? id : "";
+    void applyFont();
   }
 
   // src/brand.ts
@@ -1098,8 +1423,13 @@
     .sec.on { display: flex; }
     .q-wrap { position: relative; display: flex; flex-direction: column; margin: 0 16px 12px; }
     .q { position: relative; margin: 0; padding: 10px 16px 10px 38px; border: 1px solid #e5e7eb; border-radius: 9999px; font: inherit; outline: none; background: transparent; color: inherit; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; font-size: 13px; }
-    .q-wrap svg { position: absolute; left: 16px; top: 12px; fill: #9ca3af; pointer-events: none; z-index: 1; }
+    .q-wrap svg { position: absolute; left: 16px; top: 12px; color: #9ca3af; pointer-events: none; z-index: 1; }
     .q:focus { border-color: #d1d5db; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+    .font-bar { display: flex; align-items: flex-start; gap: 8px; margin: 0 16px 12px; }
+    .font-bar .q-wrap { flex: 1; min-width: 0; margin: 0; }
+    .font-bar .btn { margin-top: 1px; padding: 9px 14px; border-radius: 9999px; }
+    .badge { margin-left: 8px; padding: 1px 7px; border-radius: 9999px; background: #f3f4f6; color: #6b7280; font-size: 10px; font-weight: 500; }
+    :is(.tab, .kbd, .btn, .item, .x, .q):focus-visible, .sw input:focus-visible + i { outline: 2px solid #2563eb; outline-offset: 1px; }
     .list { overflow-y: auto; padding: 0 4px; flex: 1; min-height: 110px; border-bottom: 1px solid transparent; margin: 0; }
     .item { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: background 0.15s; margin: 0; }
     .item:hover { background: #f3f4f6; }
@@ -1151,17 +1481,18 @@
     .card-actions .ok { background: #f3f4f6; border-color: transparent; color: #111827; box-shadow: none; }
     .card-actions .ok:hover { background: #e5e7eb; border-color: transparent; color: #111827; }
     @media (prefers-color-scheme: dark) {
-      .panel, .card { background: rgba(22, 22, 22, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #ffffff; box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,0.1); }
+      .panel, .card { background: rgba(22, 22, 22, 0.96); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #ffffff; box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,0.1); }
       .sample, .ftr, .x, .row small, .muted, .tab, .hdr .t small, .card .t small, .card-row small { color: #888888; }
       .x { color: #888888; } .x:hover { background: rgba(255,255,255,0.06); color: #ffffff; }
       .tabs { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); padding: 3.5px; box-shadow: inset 0 1px 2px rgba(0,0,0,.2); }
       .tab:hover:not(.on) { color: #cccccc; }
       .tab.on { background: rgba(255,255,255,0.08); color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,.2), 0 0 0 1px rgba(255,255,255,0.04); }
       .q { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1); } .q:focus { background: transparent; border-color: rgba(255,255,255,0.3); box-shadow: 0 0 0 3px rgba(255,255,255,0.05); }
-      .q-wrap svg { fill: #6b7280; }
+      .q-wrap svg { color: #6b7280; }
       .item:hover, .rule:hover { background: rgba(255,255,255,0.06); } .item.on { background: rgba(255,255,255,0.1); } .item.on .sample { color: #ffffff; }
       .item.on .name::before { border-color: #ffffff; left: 14px; }
       .name { color: #ffffff; }
+      .badge { background: rgba(255,255,255,0.08); color: #a0a0a0; }
       .sample { color: #888888; }
       .ftr, .row + .row, .q-wrap + .row { border-top: 1px solid rgba(255,255,255,0.06); }
       .card-list, .card-row + .card-row { border-color: rgba(255,255,255,0.06); }
@@ -1185,7 +1516,7 @@
   function panelMarkup() {
     return `
       <style>${UI_CSS}</style>
-      <div class="panel">
+      <div class="panel" role="dialog" aria-label="RTL Anywhere settings">
         <div class="hdr">
           <div class="t" style="display:flex;align-items:center;gap:10px">
             ${BRAND_ICON}
@@ -1197,10 +1528,11 @@
             </svg>
           </button>
         </div>
-        <div class="tabs">
-          <button class="tab" data-tab="keys">Shortcuts</button>
-          <button class="tab" data-tab="auto">Auto</button>
-          <button class="tab" data-tab="sites">Sites</button>
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" data-tab="keys">Shortcuts</button>
+          <button class="tab" role="tab" data-tab="font">Font</button>
+          <button class="tab" role="tab" data-tab="auto">Auto</button>
+          <button class="tab" role="tab" data-tab="sites">Sites</button>
         </div>
 
         <div class="sec" data-sec="keys">
@@ -1210,6 +1542,18 @@
           <div class="row"><div><b>In pick mode</b><small>↑ / ↓ or ⌥ + wheel: parent / child · Esc: exit</small></div><span class="kbd fixed">↑ ↓ Esc</span></div>
           <div class="hint"></div>
           <div class="ftr"><span class="msg">Click a shortcut to change it. Saved globally.</span><button class="btn reset">Reset</button></div>
+        </div>
+
+        <div class="sec" data-sec="font">
+          <div class="font-bar">
+            <div class="q-wrap">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+              <input class="q" type="search" placeholder="Search or type a font name" aria-label="Search or type a font name" autocomplete="off" spellcheck="false">
+            </div>
+            <button class="btn set font-browse" title="List the fonts installed on this device">My fonts</button>
+          </div>
+          <div class="list fonts" role="listbox" aria-label="Fonts"></div>
+          <div class="ftr"><span class="msg font-msg"></span><button class="btn font-reset">Default</button></div>
         </div>
 
         <div class="sec" data-sec="auto">
@@ -1263,7 +1607,10 @@
     function showTab(name) {
       stopRecord();
       drawHover(null);
-      $$(".tab").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
+      $$(".tab").forEach((x) => {
+        x.classList.toggle("on", x.dataset.tab === name);
+        x.setAttribute("aria-selected", String(x.dataset.tab === name));
+      });
       $$(".sec").forEach((s) => s.classList.toggle("on", s.dataset.sec === name));
     }
     $$(".tab").forEach(
@@ -1292,6 +1639,137 @@
       renderKeys();
     });
     renderKeys();
+    const fontList = $(".fonts"), fontMsg = $(".font-msg"), fontSearch = $(".q"), fontReset = $(".font-reset"), browseBtn = $(".font-browse");
+    const MY_FONTS_CAP = 50;
+    const catalogNames = new Set(
+      FONTS.flatMap((def) => def.families.map(normalizeName))
+    );
+    let fonts = [];
+    const detect = () => {
+      fonts = FONTS.map((def) => ({ def, family: installedFamily(def) })).sort(
+        (a, b) => Number(!!b.family) - Number(!!a.family)
+      );
+    };
+    detect();
+    function addRow(label, sampleFamily, placeholder, selected, dim, onClick, badge) {
+      const item = document.createElement("div");
+      item.className = "item" + (selected ? " on" : "");
+      item.style.opacity = dim ? "0.55" : "";
+      item.tabIndex = 0;
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", String(selected));
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = label;
+      if (badge) {
+        const tag = document.createElement("span");
+        tag.className = "badge";
+        tag.textContent = badge;
+        name.append(tag);
+      }
+      const sample = document.createElement("span");
+      sample.className = "sample";
+      if (sampleFamily) {
+        sample.textContent = "سلام دنیا";
+        sample.style.fontFamily = `"${sampleFamily}"`;
+      } else sample.textContent = placeholder;
+      item.append(name, sample);
+      item.addEventListener("click", onClick);
+      item.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      });
+      fontList.appendChild(item);
+    }
+    async function choose(id, label, pending2) {
+      fontMsg.textContent = pending2;
+      const status = await setFont(id);
+      fontMsg.textContent = status === "unavailable" ? `Couldn't load ${label}. Check your connection.` : status === "assumed" ? `Using ${label}. If the text looks unchanged, it isn't installed; try "Browse my fonts".` : `Using ${label} for RTL text.`;
+      renderFonts();
+    }
+    function renderFonts() {
+      const q = fontSearch.value.trim().toLowerCase();
+      fontList.replaceChildren();
+      for (const { def, family } of fonts) {
+        if (q && !def.name.toLowerCase().includes(q)) continue;
+        const downloaded = isDownloaded(def);
+        const ready = !!family || downloaded;
+        addRow(
+          def.name,
+          family ?? (downloaded ? remoteFamily(def) : null),
+          def.remote ? "downloads on use" : "not detected",
+          def.id === fontId,
+          !family && !def.remote,
+          () => void choose(
+            def.id,
+            def.name,
+            ready || !def.remote ? "" : `Downloading ${def.name}…`
+          ),
+          def.kind === "commercial" ? "Commercial" : void 0
+        );
+      }
+      const mine = localFamilies().filter(
+        (name) => !catalogNames.has(normalizeName(name)) && isSafeFamily(name) && (!q || name.toLowerCase().includes(q))
+      );
+      for (const name of mine.slice(0, MY_FONTS_CAP))
+        addRow(
+          name,
+          name,
+          "",
+          localId(name) === fontId,
+          false,
+          () => void choose(localId(name), name, "")
+        );
+      if (mine.length > MY_FONTS_CAP) {
+        const more = document.createElement("div");
+        more.className = "empty";
+        more.textContent = `Showing ${MY_FONTS_CAP} of ${mine.length} of your fonts. Type to narrow down.`;
+        fontList.appendChild(more);
+      }
+      const typed = fontSearch.value.trim();
+      if (typed && isSafeFamily(typed))
+        addRow(
+          `Use "${typed}"`,
+          typed,
+          "",
+          localId(typed) === fontId,
+          false,
+          () => void choose(localId(typed), typed, "")
+        );
+      if (!fontList.children.length) {
+        const e = document.createElement("div");
+        e.className = "empty";
+        e.textContent = "No matching fonts.";
+        fontList.appendChild(e);
+      }
+      fontReset.disabled = !fontId;
+    }
+    fontSearch.addEventListener("input", renderFonts);
+    fontReset.addEventListener("click", () => {
+      void setFont("");
+      fontMsg.textContent = "Using the page's own font.";
+      renderFonts();
+    });
+    if (canQueryLocalFonts()) {
+      browseBtn.addEventListener("click", async () => {
+        browseBtn.disabled = true;
+        fontMsg.textContent = "Waiting for permission…";
+        const ok = await loadLocalFonts();
+        browseBtn.disabled = false;
+        if (!ok) {
+          fontMsg.textContent = "Couldn't read your fonts. Allow access, or type a font name above.";
+          return;
+        }
+        detect();
+        fontMsg.textContent = `${localFamilies().length} fonts found on this device.`;
+        browseBtn.textContent = "Refresh";
+        renderFonts();
+      });
+    } else browseBtn.hidden = true;
+    fontMsg.textContent = "Open-source fonts download on first use. Commercial fonts must be installed. Type any font name to use it.";
+    renderFonts();
     const autoGlobal = $(".auto-global"), autoSite = $(".auto-site"), autoMsg = $(".auto-msg");
     const renderAuto = () => {
       autoGlobal.checked = auto.global;
@@ -1414,6 +1892,7 @@
 
   // src/main.ts
   initStyles();
+  void applyFont();
   trackMouse();
   setFlushHandler((el) => {
     applySiteRules(el);
@@ -1423,6 +1902,9 @@
     undoAll();
     clearHover();
   };
+  onValueChange(K.auto, (v) => syncAuto(v === true));
+  onValueChange(K.sc, reloadShortcuts);
+  onValueChange(K.font, syncFont);
   onMenu("Pick mode", togglePick);
   onMenu("Undo all on this page", undoAllAndClear);
   onMenu("Settings…", () => openPanel());

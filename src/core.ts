@@ -15,9 +15,13 @@ import { flash, hudSet } from "./overlay.ts";
 import { touched, flags } from "./state.ts";
 import { initStyles } from "./styles.ts";
 
+/** Bounded read: a long article must not cost a full textContent on every flush. */
+const sampleText = (el: Element): string =>
+  (el.textContent ?? "").slice(0, 2000);
+
 export function refreshDirection(el: Element): void {
   if (!el.classList.contains(RTL_CLASS)) return;
-  const dir = RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto";
+  const dir = RTL_CHAR.test(sampleText(el)) ? "rtl" : "auto";
   if (el.getAttribute("dir") !== dir) el.setAttribute("dir", dir);
 }
 
@@ -30,7 +34,7 @@ export function applyRTL(
   if (root instanceof ShadowRoot) initStyles(root);
   if (!el.hasAttribute(PREV_DIR))
     el.setAttribute(PREV_DIR, el.getAttribute("dir") ?? "");
-  el.setAttribute("dir", RTL_CHAR.test(el.textContent ?? "") ? "rtl" : "auto");
+  el.setAttribute("dir", RTL_CHAR.test(sampleText(el)) ? "rtl" : "auto");
   ensureObserver();
   if (root instanceof ShadowRoot) ensureObserver(root);
   el.classList.add(RTL_CLASS);
@@ -90,7 +94,7 @@ export function undoAll(): void {
   const n = els.length;
   hudSet(
     n
-      ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"}`
+      ? `Reverted <b>${n}</b> element${n === 1 ? "" : "s"} — auto paused until next toggle`
       : "Nothing to undo on this page",
     true,
   );
@@ -141,6 +145,7 @@ function toggleSelection(sel: Selection): void {
 }
 
 export function action(lastMouseTarget: Element | null): void {
+  flags.paused = false; // a deliberate toggle resumes what "Undo all" paused
   const a = document.activeElement;
   if (
     (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement) &&

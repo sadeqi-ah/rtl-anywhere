@@ -2,7 +2,8 @@
 // Batched on a 250ms timer so infinite-scroll feeds don't cause a scan per node.
 // The scan itself is injected by main.ts (setFlushHandler), which keeps this module
 // free of imports from auto.ts / sites.ts — no import cycle.
-import { AUTO_CANDIDATES } from "./constants.ts";
+import { AUTO_CANDIDATES, RTL_CLASS } from "./constants.ts";
+import { siteRules } from "./rules.ts";
 import { initStyles } from "./styles.ts";
 import { flags } from "./state.ts";
 
@@ -14,6 +15,7 @@ const observers = new WeakMap<
   MutationObserver
 >();
 const pending = new Set<Element>();
+const active = new Set<MutationObserver>();
 
 export const setFlushHandler = (
   fn: (el: Element) => void,
@@ -36,7 +38,17 @@ export function ensureObserver(
             observeShadows(n);
           } else if (n.parentElement) pending.add(n.parentElement);
         });
-      else if (m.target instanceof Element) pending.add(m.target);
+      else if (m.type === "attributes") {
+        // Class/id changes only matter to site rules; dir changes only to RTL elements.
+        const t = m.target;
+        if (!(t instanceof Element)) continue;
+        if (
+          m.attributeName === "dir"
+            ? t.classList.contains(RTL_CLASS)
+            : siteRules.length
+        )
+          pending.add(t);
+      } else if (m.target instanceof Element) pending.add(m.target);
       else if (m.target.parentElement) pending.add(m.target.parentElement);
     }
     if (pending.size && !moTimer)
@@ -50,6 +62,7 @@ export function ensureObserver(
     attributeFilter: ["class", "id", "dir"],
   });
   observers.set(root, mo);
+  active.add(mo);
   observeShadows(root);
 }
 
@@ -80,4 +93,6 @@ function flushPending(): void {
     onRefresh?.(el);
     onFlush(el);
   }
+  // Drop mutations our own writes just caused, so they don't re-queue another scan.
+  for (const mo of active) mo.takeRecords();
 }

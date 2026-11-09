@@ -87,7 +87,7 @@ Before changing userscript grants, storage, network behavior, or page integratio
 Hard rules:
 
 - No analytics or telemetry.
-- No network APIs unless explicitly reviewed.
+- No network APIs unless explicitly reviewed. The only reviewed one is the open-source font download; see `SECURITY.md`.
 - Do not store page text, selected text, page URLs, or browsing history.
 - Keep storage limited to user preferences and remembered selectors.
 

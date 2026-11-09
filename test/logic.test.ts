@@ -12,6 +12,16 @@ import {
 } from "../src/keys.ts";
 import type { Combo } from "../src/keys.ts";
 import { stableClass, stableId } from "../src/selector.ts";
+import {
+  FONTS,
+  findFont,
+  fontStack,
+  isSafeFamily,
+  localId,
+  localStack,
+  normalizeName,
+  parseLocalId,
+} from "../src/fonts.ts";
 import { AUTO_RATIO } from "../src/constants.ts";
 
 /** Combos carry every modifier, so tests spell out only the ones that matter. */
@@ -128,4 +138,62 @@ test("selector guards accept semantic names and reject volatile variants", () =>
   assert.ok(!stableClass("open-menu"));
   assert.ok(stableId("article-main"));
   assert.ok(!stableId("post-1234"));
+});
+
+test("stableClass keeps utility names with short digits, drops hashes", () => {
+  assert.ok(stableClass("col-md-6"));
+  assert.ok(stableClass("h2-title"));
+  assert.ok(!stableClass("css-1x2y3z"));
+  assert.ok(!stableClass("sc-123456"));
+});
+
+test("font catalog: unique ids, Latin-only quoted family names", () => {
+  assert.equal(new Set(FONTS.map((x) => x.id)).size, FONTS.length);
+  for (const font of FONTS) {
+    assert.ok(font.families.length > 0, font.id);
+    for (const name of font.families)
+      assert.match(name, /^[A-Za-z0-9 -]+$/, font.id);
+  }
+  assert.equal(fontStack(findFont("vazirmatn")!), "'Vazirmatn', 'Vazir'");
+  assert.equal(findFont("nope"), undefined);
+});
+
+test("open-source fonts are pinned and hash-checked; commercial ones never download", () => {
+  for (const font of FONTS) {
+    if (font.kind === "commercial")
+      assert.equal(font.remote, undefined, font.id);
+    if (!font.remote) continue;
+    assert.equal(font.kind, "opensource", font.id);
+    assert.match(
+      font.remote.url,
+      /^https:\/\/cdn\.jsdelivr\.net\/.+@v?\d+[\d.]*\//,
+      font.id,
+    );
+    assert.match(font.remote.sha256, /^[0-9a-f]{64}$/, font.id);
+  }
+  assert.equal(FONTS.filter((x) => x.remote).length, 6);
+});
+
+test("local font ids round-trip and reject anything that could break out of CSS", () => {
+  assert.equal(parseLocalId(localId("Yekan Bakh")), "Yekan Bakh");
+  assert.equal(parseLocalId("vazirmatn"), null);
+  for (const bad of [
+    'a"b',
+    "a'b",
+    "a\\b",
+    "a;b",
+    "a{b}",
+    "a\nb",
+    "",
+    "x".repeat(101),
+  ])
+    assert.equal(isSafeFamily(bad), false, JSON.stringify(bad));
+  assert.equal(parseLocalId(localId('a"; } body { display:none')), null);
+  assert.equal(localStack("Abar VF"), '"Abar VF", sans-serif');
+});
+
+test("normalizeName matches spacing and punctuation variants", () => {
+  assert.equal(normalizeName("Yekan Bakh"), normalizeName("yekan-bakh"));
+  assert.equal(normalizeName("YekanBakh"), "yekanbakh");
+  assert.notEqual(normalizeName("Abar"), normalizeName("Abar VF"));
 });

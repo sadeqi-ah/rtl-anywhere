@@ -24,6 +24,14 @@ export let shortcuts: Record<ShortcutId, Combo> = merge();
 
 const save = () => setValue(K.sc, shortcuts);
 
+/** Another tab saved shortcuts: reload them without writing back. */
+export function reloadShortcuts(): void {
+  const next = getValue(K.sc, {});
+  shortcuts = Object.fromEntries(
+    SC_IDS.map((id) => [id, { ...DEFAULT_SC[id], ...next[id] }]),
+  ) as Record<ShortcutId, Combo>;
+}
+
 export function resetShortcuts(): void {
   shortcuts = Object.fromEntries(
     SC_IDS.map((id) => [id, { ...DEFAULT_SC[id] }]),

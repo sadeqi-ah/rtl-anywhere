@@ -1,6 +1,6 @@
 {
   "name": "rtl-anywhere",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Userscript that makes any text on any website right-to-left with one shortcut.",
